@@ -1,0 +1,70 @@
+# WebLLM Banking Assistant
+
+A browser-based banking assistant that runs a compact language model locally with WebLLM and WebGPU. The app demonstrates client-side inference for banking education, customer communication, transaction workflows, and visual transaction insights.
+
+## Functionality
+
+- **Banking Prompt Lab**: Ask banking questions and get locally generated responses in the browser.
+- **Dispute Form Filling**: Select a transaction, add dispute details, and generate a structured draft.
+- **Transaction Search**: Search transactions with natural language and get an explanation of matching results.
+- **Transaction Visualization**: Generate simple spending charts and receive a locally generated interpretation.
+- **WebLLM Learning Page**: Review WebLLM, WebGPU, IndexedDB, caching, and banking use-case concepts at `/webllm-demo.html`.
+- **Simple Markdown Rendering**: Assistant responses render headings, bullets, paragraphs, and bold text as HTML.
+
+## Tech Stack
+
+- React
+- TypeScript
+- Vite
+- WebLLM
+- WebGPU
+- IndexedDB cache backend
+
+## Getting Started
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+## Sample Banking Prompt Lab Questions
+
+- Explain the difference between available balance and current balance in simple customer-friendly language.
+- Draft a polite response to a customer asking why an ACH transfer is still pending.
+- Summarize the steps a customer should take if they see an unfamiliar card transaction.
+- Explain why an overdraft fee might appear on a checking account.
+- Rewrite this message in a warmer tone: "Your payment was declined due to insufficient funds."
+- Create a short FAQ answer explaining what pending transactions are.
+- Draft a support reply for a customer asking how to avoid monthly maintenance fees.
+- Explain the difference between a debit card dispute and a credit card dispute.
+- Create a checklist for opening a new checking account.
+- Summarize a bank policy into three plain-language bullet points.
+- Draft an alert message for a customer whose recurring subscription increased.
+- Explain what a minimum payment means on a credit card statement.
+- Write a customer-friendly explanation of why a deposited check may be on hold.
+- Create a branch associate script for explaining CD early withdrawal penalties.
+- Turn this internal note into a customer-facing response: "ACH return code R01 indicates insufficient funds."
+
+## Suggested Demo Flow
+
+1. Start with an explanation prompt, such as available balance versus current balance.
+2. Try a customer communication prompt, such as rewriting a declined payment message.
+3. Use a structured prompt, such as creating a checklist or summarizing a policy.
+4. Move to the transaction search or visualization tabs to show guided banking workflows.
+
+## Notes
+
+The first model load downloads WebLLM model artifacts into browser storage. Later visits can reuse the local cache for faster startup.
