@@ -1099,7 +1099,13 @@ export default function App() {
                     <span>
                       {message.role === "user" ? "You" : "Assistant"}
                     </span>
-                    <p>{message.content || "Thinking..."}</p>
+                    {message.role === "assistant" && message.content ? (
+                      <div className="markdown-output">
+                        {renderSimpleMarkdown(message.content)}
+                      </div>
+                    ) : (
+                      <p>{message.content || "Thinking..."}</p>
+                    )}
                   </article>
                 ))
               )}

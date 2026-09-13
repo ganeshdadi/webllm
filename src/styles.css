@@ -437,6 +437,10 @@ h3 {
   white-space: pre-wrap;
 }
 
+.message .markdown-output {
+  gap: 8px;
+}
+
 .composer {
   display: grid;
   grid-template-columns: 1fr auto;
