@@ -68,15 +68,15 @@ button:disabled {
 
 .app-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 18px;
 }
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 24px;
-  max-width: 1280px;
-  min-height: calc(100vh - 48px);
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 18px;
+  max-width: 1440px;
+  min-height: calc(100vh - 36px);
   margin: 0 auto;
 }
 
@@ -90,8 +90,8 @@ button:disabled {
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 24px;
+  gap: 16px;
+  padding: 20px;
   border-radius: 8px;
 }
 
@@ -491,37 +491,31 @@ h3 {
 
 .dispute-workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1fr) minmax(
-      320px,
-      1fr
-    );
-  gap: 18px;
+  grid-template-columns: 0.85fr 1fr 1fr;
+  gap: 14px;
   overflow-y: auto;
-  padding: 24px;
+  overflow-x: hidden;
+  padding: 16px;
   background: var(--color-surface-tint);
 }
 
 .search-workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 0.9fr) minmax(300px, 0.9fr) minmax(
-      320px,
-      1fr
-    );
-  gap: 18px;
+  grid-template-columns: 0.9fr 0.9fr 1fr;
+  gap: 14px;
   overflow-y: auto;
-  padding: 24px;
+  overflow-x: hidden;
+  padding: 16px;
   background: var(--color-surface-tint);
 }
 
 .visualization-workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 0.8fr) minmax(340px, 1fr) minmax(
-      320px,
-      1fr
-    );
-  gap: 18px;
+  grid-template-columns: 0.9fr 1fr 1fr;
+  gap: 14px;
   overflow-y: auto;
-  padding: 24px;
+  overflow-x: hidden;
+  padding: 16px;
   background: var(--color-surface-tint);
 }
 
@@ -538,8 +532,9 @@ h3 {
 .chart-panel {
   display: grid;
   align-content: start;
-  gap: 14px;
-  padding: 16px;
+  min-width: 0;
+  gap: 12px;
+  padding: 14px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
@@ -834,6 +829,28 @@ h3 {
   .search-workspace,
   .visualization-workspace {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.9fr) minmax(280px, 1fr);
+    align-items: start;
+  }
+
+  .sidebar .learn-link,
+  .sidebar .error {
+    grid-column: 1 / -1;
+  }
+
+  h1 {
+    max-width: none;
+    font-size: clamp(2.1rem, 4vw, 3.4rem);
   }
 }
 
