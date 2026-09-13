@@ -68,6 +68,88 @@ type ChartDataPoint = {
   count: number;
 };
 
+function renderInlineMarkdown(text: string): ReactNode[] {
+  return text
+    .split(/(\*\*[^*]+\*\*)/g)
+    .filter(Boolean)
+    .map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={index}>{part.slice(2, -2)}</strong>;
+      }
+
+      return part;
+    });
+}
+
+function renderSimpleMarkdown(markdown: string): ReactNode[] {
+  const lines = markdown.trim().split(/\r?\n/);
+  const blocks: ReactNode[] = [];
+  let paragraph: string[] = [];
+  let bullets: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) return;
+    blocks.push(
+      <p key={`p-${blocks.length}`}>
+        {renderInlineMarkdown(paragraph.join(" "))}
+      </p>,
+    );
+    paragraph = [];
+  };
+
+  const flushBullets = () => {
+    if (bullets.length === 0) return;
+    blocks.push(
+      <ul key={`ul-${blocks.length}`}>
+        {bullets.map((item, index) => (
+          <li key={index}>{renderInlineMarkdown(item)}</li>
+        ))}
+      </ul>,
+    );
+    bullets = [];
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushParagraph();
+      flushBullets();
+      return;
+    }
+
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      flushBullets();
+      const HeadingTag = `h${Math.min(heading[1].length + 2, 4)}` as
+        | "h3"
+        | "h4";
+      blocks.push(
+        <HeadingTag key={`h-${blocks.length}`}>
+          {renderInlineMarkdown(heading[2])}
+        </HeadingTag>,
+      );
+      return;
+    }
+
+    const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      flushParagraph();
+      bullets.push(bullet[1]);
+      return;
+    }
+
+    flushBullets();
+    paragraph.push(trimmed);
+  });
+
+  flushParagraph();
+  flushBullets();
+
+  return blocks;
+}
+
 const initialProgress: LoadProgress = {
   phase: "checking-webgpu",
   text: "Checking browser WebGPU support...",
@@ -1209,7 +1291,9 @@ export default function App() {
                   <h3>Review generated draft</h3>
                 </div>
                 {disputeDraft ? (
-                  <pre>{disputeDraft}</pre>
+                  <div className="markdown-output">
+                    {renderSimpleMarkdown(disputeDraft)}
+                  </div>
                 ) : (
                   <div className="empty-state compact">
                     <h3>No draft yet.</h3>
@@ -1331,7 +1415,9 @@ export default function App() {
                   <h3>WebLLM explanation</h3>
                 </div>
                 {transactionSearchSummary ? (
-                  <pre>{transactionSearchSummary}</pre>
+                  <div className="markdown-output">
+                    {renderSimpleMarkdown(transactionSearchSummary)}
+                  </div>
                 ) : (
                   <div className="empty-state compact">
                     <h3>No explanation yet.</h3>
@@ -1462,7 +1548,9 @@ export default function App() {
                   <h3>WebLLM chart explanation</h3>
                 </div>
                 {chartSummary ? (
-                  <pre>{chartSummary}</pre>
+                  <div className="markdown-output">
+                    {renderSimpleMarkdown(chartSummary)}
+                  </div>
                 ) : (
                   <div className="empty-state compact">
                     <h3>No explanation yet.</h3>

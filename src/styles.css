@@ -698,13 +698,41 @@ h3 {
   min-height: 420px;
 }
 
-.draft-panel pre {
-  overflow-x: auto;
-  margin: 0;
-  white-space: pre-wrap;
-  color: var(--color-text-strong);
-  font-family: inherit;
+.markdown-output {
+  display: grid;
+  gap: 10px;
+  color: var(--color-text);
   line-height: 1.55;
+}
+
+.markdown-output h3,
+.markdown-output h4 {
+  margin: 8px 0 0;
+  color: var(--color-text-strong);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.markdown-output h3:first-child,
+.markdown-output h4:first-child {
+  margin-top: 0;
+}
+
+.markdown-output p,
+.markdown-output ul {
+  margin: 0;
+}
+
+.markdown-output ul {
+  padding-left: 1.15rem;
+}
+
+.markdown-output li + li {
+  margin-top: 6px;
+}
+
+.markdown-output strong {
+  color: var(--color-text-strong);
 }
 
 .result-list {
