@@ -1,8 +1,8 @@
 :root {
-  --color-text: #2a1516;
-  --color-text-strong: #3a1115;
-  --color-text-muted: #6f5752;
-  --color-text-soft: #7a6560;
+  --color-text: #1f1f1f;
+  --color-text-strong: #111111;
+  --color-text-muted: #5f5f5f;
+  --color-text-soft: #707070;
   --color-page: #f8f3ef;
   --color-surface: #ffffff;
   --color-surface-soft: #fffaf6;
