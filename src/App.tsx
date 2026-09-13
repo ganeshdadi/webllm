@@ -176,7 +176,7 @@ const MOCK_TRANSACTIONS: MockTransaction[] = [
     accountLabel: "Checking debit card ending 1182",
     sampleIssueType: "N/A",
     sampleExplanation:
-      "This is a sample grocery transaction for natural-language transaction search.",
+      "This grocery transaction can be used for natural-language transaction search.",
     tags: ["groceries", "grocery", "market", "food", "debit"],
   },
   {
@@ -190,7 +190,7 @@ const MOCK_TRANSACTIONS: MockTransaction[] = [
     accountLabel: "Everyday Rewards Card ending 2048",
     sampleIssueType: "N/A",
     sampleExplanation:
-      "This is a sample recurring entertainment subscription transaction.",
+      "This recurring entertainment subscription can be used for transaction search.",
     tags: ["subscription", "streaming", "recurring", "entertainment"],
   },
   {
@@ -204,7 +204,7 @@ const MOCK_TRANSACTIONS: MockTransaction[] = [
     accountLabel: "Checking debit card ending 1182",
     sampleIssueType: "N/A",
     sampleExplanation:
-      "This is a sample electric utility bill transaction.",
+      "This electric utility bill can be used for transaction search.",
     tags: ["utilities", "utility", "electric", "bill", "debit"],
   },
   {
@@ -218,7 +218,7 @@ const MOCK_TRANSACTIONS: MockTransaction[] = [
     accountLabel: "Travel Card ending 7710",
     sampleIssueType: "N/A",
     sampleExplanation:
-      "This is a sample airline purchase for travel spending search.",
+      "This airline purchase can be used for travel spending search.",
     tags: ["travel", "airline", "flight", "card", "skytrail"],
   },
   {
@@ -232,7 +232,7 @@ const MOCK_TRANSACTIONS: MockTransaction[] = [
     accountLabel: "Everyday Rewards Card ending 2048",
     sampleIssueType: "N/A",
     sampleExplanation:
-      "This is a sample pharmacy transaction for category search.",
+      "This pharmacy transaction can be used for category search.",
     tags: ["health", "pharmacy", "medical", "card"],
   },
 ];
@@ -430,9 +430,9 @@ export default function App() {
 
   function buildDisputePrompt() {
     return [
-      "Create a dispute form draft using this mock demo data only.",
+      "Create a dispute form draft using the provided transaction and form details.",
       "",
-      "Selected mock transaction:",
+      "Selected transaction:",
       `- Merchant: ${selectedTransaction.merchant}`,
       `- Amount: ${selectedTransaction.amount}`,
       `- Date: ${selectedTransaction.date}`,
@@ -450,7 +450,6 @@ export default function App() {
       "- Use markdown headings.",
       "- Be concise and form-ready.",
       "- Include a careful review note that this is a draft, not a submitted dispute.",
-      "- Do not ask for real account numbers, card numbers, credentials, or sensitive personal data.",
     ].join("\n");
   }
 
@@ -473,7 +472,7 @@ export default function App() {
       setProgress((current) => ({
         ...current,
         phase: "ready",
-        text: "Ready for the next banking demo.",
+        text: "Ready for the next banking workflow.",
       }));
     } catch (caught) {
       const message =
@@ -532,7 +531,7 @@ export default function App() {
   function buildTransactionSearchPrompt(results: MockTransaction[]) {
     const resultLines =
       results.length === 0
-        ? "- No mock transactions matched the local filter."
+        ? "- No transactions matched the local filter."
         : results
             .map(
               (transaction) =>
@@ -541,18 +540,17 @@ export default function App() {
             .join("\n");
 
     return [
-      "Explain this mock natural-language transaction search.",
+      "Explain this natural-language transaction search.",
       "",
       `Customer search query: ${transactionSearchQuery}`,
       "",
-      "Local mock search results:",
+      "Local search results:",
       resultLines,
       "",
       "Output requirements:",
       "- Explain how the query was interpreted.",
       "- Summarize the matching transactions.",
       "- Suggest helpful next actions like view details, download results, create chart, set alert, or start a dispute when relevant.",
-      "- Clearly state this is mock demo data, not real account data.",
     ].join("\n");
   }
 
@@ -568,7 +566,7 @@ export default function App() {
     setProgress((current) => ({
       ...current,
       phase: "generating",
-      text: "Explaining mock transaction search results on the client GPU...",
+      text: "Explaining transaction search results on the client GPU...",
     }));
 
     try {
@@ -579,7 +577,7 @@ export default function App() {
       setProgress((current) => ({
         ...current,
         phase: "ready",
-        text: "Ready for the next banking demo.",
+        text: "Ready for the next banking workflow.",
       }));
     } catch (caught) {
       const message =
@@ -692,7 +690,7 @@ export default function App() {
     const total = data.reduce((sum, point) => sum + point.amount, 0);
     const dataLines =
       data.length === 0
-        ? "- No mock transactions matched the chart request."
+        ? "- No transactions matched the chart request."
         : data
             .map(
               (point) =>
@@ -701,20 +699,19 @@ export default function App() {
             .join("\n");
 
     return [
-      "Explain this mock transaction visualization.",
+      "Explain this transaction visualization.",
       "",
       `Customer chart request: ${visualizationQuery}`,
       `Generated chart: ${title}`,
       `Total represented spend: $${total.toFixed(2)}`,
       "",
-      "Mock aggregated chart data:",
+      "Aggregated chart data:",
       dataLines,
       "",
       "Output requirements:",
       "- Explain what the chart shows in plain language.",
       "- Mention the largest category, merchant, month, or account when visible.",
       "- Suggest useful next actions such as compare prior month, create alert, review merchant details, or export chart.",
-      "- Clearly state this is mock demo data, not real account data.",
     ].join("\n");
   }
 
@@ -731,7 +728,7 @@ export default function App() {
     setProgress((current) => ({
       ...current,
       phase: "generating",
-      text: "Explaining mock transaction visualization on the client GPU...",
+      text: "Explaining transaction visualization on the client GPU...",
     }));
 
     try {
@@ -742,7 +739,7 @@ export default function App() {
       setProgress((current) => ({
         ...current,
         phase: "ready",
-        text: "Ready for the next banking demo.",
+        text: "Ready for the next banking workflow.",
       }));
     } catch (caught) {
       const message =
@@ -810,7 +807,7 @@ export default function App() {
       setProgress((current) => ({
         ...current,
         phase: "ready",
-        text: "Ready for the next banking demo prompt.",
+        text: "Ready for the next banking prompt.",
       }));
     } catch (caught) {
       const message =
@@ -839,7 +836,7 @@ export default function App() {
       <section className="workspace">
         <aside className="sidebar">
           <div>
-            <p className="eyebrow">WebLLM POC</p>
+            <p className="eyebrow">WebLLM</p>
             <h1>Local Banking Assistant</h1>
             <p className="intro">
               Runs inference in this browser with WebGPU. The first launch
@@ -928,21 +925,16 @@ export default function App() {
             </button>
           </div>
 
-          <p className="note">
-            Demo only. Do not enter real customer, account, card, credential, or
-            confidential bank data.
-          </p>
-
           <a className="learn-link" href="/webllm-demo.html">
             <ExternalLink aria-hidden="true" />
-            Open WebLLM presentation and GPU demos
+            Open WebLLM presentation and GPU labs
           </a>
 
           {error && <p className="error">{error}</p>}
         </aside>
 
         <section className="demo-panel">
-          <div className="demo-tabs" role="tablist" aria-label="Banking demos">
+          <div className="demo-tabs" role="tablist" aria-label="Banking workflows">
             <button
               role="tab"
               aria-selected={activeTab === "prompt-lab"}
@@ -1010,7 +1002,7 @@ export default function App() {
             <div className="messages" aria-live="polite">
               {messages.length === 0 ? (
                 <div className="empty-state">
-                  <h3>Load the model, then try a sample banking prompt.</h3>
+                  <h3>Load the model, then try a banking prompt.</h3>
                   <p>
                     The response should stream locally from WebLLM without a
                     server round trip.
@@ -1035,9 +1027,9 @@ export default function App() {
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder={
-                  canChat
-                    ? "Ask a banking demo question..."
+                  placeholder={
+                    canChat
+                    ? "Ask a banking question..."
                     : "Load the model before chatting..."
                 }
                 disabled={!canChat}
@@ -1057,23 +1049,17 @@ export default function App() {
           >
             <header className="chat-header">
               <div>
-                <p className="eyebrow">Mock Data Only</p>
+                <p className="eyebrow">Transaction Workflow</p>
                 <h2>Dispute form filling</h2>
               </div>
               <FileText aria-hidden="true" />
             </header>
 
-            <div className="dispute-disclaimer">
-              Demo only. Do not enter real customer, account, card, or dispute
-              data. Final submission would happen through a bank-controlled
-              dispute workflow.
-            </div>
-
             <div className="dispute-workspace">
-              <section className="transaction-list" aria-label="Mock transactions">
+              <section className="transaction-list" aria-label="Transactions">
                 <div className="section-heading">
                   <p className="eyebrow">Step 1</p>
-                  <h3>Select a mock transaction</h3>
+                  <h3>Select a transaction</h3>
                 </div>
                 {MOCK_TRANSACTIONS.map((transaction) => (
                   <button
@@ -1137,7 +1123,7 @@ export default function App() {
                         event.target.value,
                       )
                     }
-                    placeholder="Use sample text or type a mock customer explanation..."
+                    placeholder="Use the suggested text or type a customer explanation..."
                     rows={5}
                   />
                 </label>
@@ -1184,7 +1170,7 @@ export default function App() {
 
                 <div className="dispute-actions">
                   <button type="button" onClick={handleUseSampleExplanation}>
-                    Use Sample Explanation
+                    Use Suggested Explanation
                   </button>
                   <button
                     className="primary"
@@ -1228,7 +1214,7 @@ export default function App() {
                   <div className="empty-state compact">
                     <h3>No draft yet.</h3>
                     <p>
-                      Select a mock transaction, add a customer explanation,
+                      Select a transaction, add a customer explanation,
                       then generate a local WebLLM dispute draft.
                     </p>
                   </div>
@@ -1245,16 +1231,11 @@ export default function App() {
           >
             <header className="chat-header">
               <div>
-                <p className="eyebrow">Mock Transaction Data</p>
+                <p className="eyebrow">Transaction Search</p>
                 <h2>Natural-language transaction search</h2>
               </div>
               <Search aria-hidden="true" />
             </header>
-
-            <div className="dispute-disclaimer">
-              Demo only. Searches run against mock transactions shown in this
-              page. No real account, card, or customer transaction data is used.
-            </div>
 
             <div className="search-workspace">
               <section className="search-query-card">
@@ -1293,7 +1274,7 @@ export default function App() {
                     ) : (
                       <Search aria-hidden="true" />
                     )}
-                    Search Mock Transactions
+                    Search Transactions
                   </button>
                   <button
                     type="button"
@@ -1313,7 +1294,7 @@ export default function App() {
               <section className="search-results-card">
                 <div className="section-heading">
                   <p className="eyebrow">Step 2</p>
-                  <h3>Local mock matches</h3>
+                  <h3>Local matches</h3>
                 </div>
                 {transactionSearchResults.length > 0 ? (
                   <div className="result-list">
@@ -1337,8 +1318,8 @@ export default function App() {
                   <div className="empty-state compact">
                     <h3>No search run yet.</h3>
                     <p>
-                      Pick a sample query or write your own, then search the
-                      mock transaction list.
+                      Pick a suggested query or write your own, then search the
+                      transaction list.
                     </p>
                   </div>
                 )}
@@ -1355,7 +1336,7 @@ export default function App() {
                   <div className="empty-state compact">
                     <h3>No explanation yet.</h3>
                     <p>
-                      The model will explain how the mock results match the
+                      The model will explain how the results match the
                       natural-language search.
                     </p>
                   </div>
@@ -1372,17 +1353,11 @@ export default function App() {
           >
             <header className="chat-header">
               <div>
-                <p className="eyebrow">Mock Transaction Data</p>
+                <p className="eyebrow">Transaction Insights</p>
                 <h2>Transaction visualization</h2>
               </div>
               <BarChart3 aria-hidden="true" />
             </header>
-
-            <div className="dispute-disclaimer">
-              Demo only. Charts are generated from mock transactions in this
-              browser. No real account, card, or customer transaction data is
-              used.
-            </div>
 
             <div className="visualization-workspace">
               <section className="search-query-card">
@@ -1474,8 +1449,8 @@ export default function App() {
                   <div className="empty-state compact">
                     <h3>No chart yet.</h3>
                     <p>
-                      Choose a sample chart request or type your own, then
-                      generate a local mock visualization.
+                      Choose a suggested chart request or type your own, then
+                      generate a local visualization.
                     </p>
                   </div>
                 )}
@@ -1492,7 +1467,7 @@ export default function App() {
                   <div className="empty-state compact">
                     <h3>No explanation yet.</h3>
                     <p>
-                      The model will explain the mock chart and suggest useful
+                      The model will explain the chart and suggest useful
                       next actions.
                     </p>
                   </div>

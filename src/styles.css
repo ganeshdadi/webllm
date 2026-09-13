@@ -470,7 +470,7 @@ h3 {
 .search-panel,
 .visualization-panel {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   min-height: 0;
   overflow: hidden;
   border: 0;

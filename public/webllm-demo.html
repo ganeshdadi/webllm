@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebLLM Concepts, WebGPU, and IndexedDB Demo</title>
+    <title>WebLLM Concepts, WebGPU, and IndexedDB</title>
     <link
       rel="icon"
       type="image/svg+xml"
@@ -620,7 +620,7 @@
           aria-controls="panel-demos"
           data-tab-target="panel-demos"
         >
-          GPU Interaction Demos
+          GPU Interaction Labs
         </button>
         <button
           class="tab-button"
@@ -877,7 +877,7 @@
                     <tbody>
                       <tr>
                         <td>Chrome / Edge</td>
-                        <td>Best starting point for this POC on WebGPU-capable Windows, macOS, and ChromeOS machines.</td>
+                        <td>Best starting point for WebGPU-capable Windows, macOS, and ChromeOS machines.</td>
                       </tr>
                       <tr>
                         <td>Safari</td>
@@ -1492,7 +1492,7 @@
         </aside>
       </section>
 
-      <h2 class="section-title">GPU Interaction Demos</h2>
+      <h2 class="section-title">GPU Interaction Labs</h2>
       <section class="grid" aria-label="WebGPU examples">
         <article class="demo-card">
           <div class="card-top">
@@ -1680,7 +1680,7 @@ const elapsed = performance.now() - start;</code></pre>
         </p>
       </div>
 
-      <h2 class="section-title">IndexedDB Demos</h2>
+      <h2 class="section-title">IndexedDB Labs</h2>
       <section class="grid" aria-label="IndexedDB examples">
         <article class="demo-card">
           <div class="card-top">
@@ -1690,7 +1690,7 @@ const elapsed = performance.now() - start;</code></pre>
             </div>
             <span class="badge">Create DB</span>
           </div>
-          <pre><code>const request = indexedDB.open("webgpu-learning-demo", 1);
+          <pre><code>const request = indexedDB.open("webgpu-learning-lab", 1);
 request.onupgradeneeded = () =&gt; {
   request.result.createObjectStore("records");
 };</code></pre>
@@ -1755,7 +1755,7 @@ store.put(bytes.buffer, "fake-model-artifact");</code></pre>
           <pre><code>const keys = await store.getAllKeys();
 const values = await store.getAll();</code></pre>
           <p class="explain">
-            Listing records helps you see what this demo has placed in browser
+            Listing records helps you see what this page has placed in browser
             storage for this origin.
           </p>
           <div class="run-row">
@@ -1768,20 +1768,20 @@ const values = await store.getAll();</code></pre>
           <div class="card-top">
             <div>
               <p class="eyebrow">Storage 5</p>
-              <h3>Delete and clear demo storage</h3>
+              <h3>Delete and clear local storage</h3>
             </div>
             <span class="badge">Cleanup</span>
           </div>
           <pre><code>store.delete("message");
 store.clear();</code></pre>
           <p class="explain">
-            This only affects the demo database named
-            <code>webgpu-learning-demo</code>. It does not clear the WebLLM
+            This only affects the local database named
+            <code>webgpu-learning-lab</code>. It does not clear the WebLLM
             model cache.
           </p>
           <div class="run-row">
             <button data-demo="deleteMessage">Delete message</button>
-            <button class="danger" data-demo="clearStore">Clear demo store</button>
+            <button class="danger" data-demo="clearStore">Clear local store</button>
           </div>
           <pre class="output" id="out-deleteMessage">Output will appear here.</pre>
           <pre class="output" id="out-clearStore">Clear output will appear here.</pre>
@@ -1792,7 +1792,7 @@ store.clear();</code></pre>
         <h3>IndexedDB and WebLLM caching</h3>
         <p>
           IndexedDB persists across page refreshes and browser restarts until
-          site data is cleared. In the WebLLM POC, the configured cache backend
+          site data is cleared. In this WebLLM app, the configured cache backend
           lets WebLLM keep downloaded model artifacts locally so the next load
           can avoid downloading the full model again.
         </p>
@@ -1801,7 +1801,7 @@ store.clear();</code></pre>
     </main>
 
     <script type="module">
-      const DB_NAME = "webgpu-learning-demo";
+      const DB_NAME = "webgpu-learning-lab";
       const STORE_NAME = "records";
 
       function selectTab(targetId) {
@@ -2171,8 +2171,8 @@ store.clear();</code></pre>
         const gpuMs = performance.now() - gpuStart;
 
         return [
-          `CPU result sample: [${Array.from(cpuResult.slice(0, 6)).join(", ")} ...]`,
-          `GPU result sample: [${gpuResult.slice(0, 6).join(", ")} ...]`,
+          `CPU result preview: [${Array.from(cpuResult.slice(0, 6)).join(", ")} ...]`,
+          `GPU result preview: [${gpuResult.slice(0, 6).join(", ")} ...]`,
           `CPU wall-clock time: ${cpuMs.toFixed(3)} ms`,
           `GPU wall-clock time: ${gpuMs.toFixed(3)} ms`,
           "",
@@ -2325,7 +2325,7 @@ store.clear();</code></pre>
             }),
           );
         });
-        return records.length ? records : "No records found. Run the put/get demos first.";
+        return records.length ? records : "No records found. Run the put/get lab first.";
       }
 
       async function deleteMessage() {
@@ -2339,7 +2339,7 @@ store.clear();</code></pre>
         await withStore("readwrite", (store) => {
           store.clear();
         });
-        return "Cleared all records in the demo object store.";
+        return "Cleared all records in the local object store.";
       }
 
       const demos = {
