@@ -837,7 +837,7 @@ export default function App() {
         <aside className="sidebar">
           <div>
             <p className="eyebrow">WebLLM</p>
-            <h1>Local Banking Assistant</h1>
+            <h1>Banking Assistant</h1>
             <p className="intro">
               Runs inference in this browser with WebGPU. The first launch
               downloads model artifacts; later launches reuse browser cache.
