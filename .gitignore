@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+.vite-temp/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/

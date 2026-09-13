@@ -1,0 +1,2371 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebLLM Concepts, WebGPU, and IndexedDB Demo</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5f3a'/%3E%3Cpath d='M17 19h30v19H17z' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M23 47h18M32 38v9M23 27h18' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        color: #18211d;
+        background: #f4f6f1;
+        --content-color: #24342b;
+        --content-strong: #193526;
+        --content-muted: #34483d;
+        --accent-bg: #dfe9e1;
+        --accent-border: #8ea39a;
+        --accent-text: #1d3327;
+        --accent-bg-soft: #f2f6f2;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      a {
+        color: #205f3b;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .shell {
+        max-width: 1220px;
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+
+      .tab-switcher {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 22px;
+        padding: 8px;
+        border: 1px solid #d7ddd2;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .tab-button {
+        min-height: 42px;
+        font-weight: 900;
+      }
+
+      .tab-button[aria-selected="true"] {
+        border-color: var(--accent-border);
+        color: var(--accent-text);
+        background: var(--accent-bg);
+      }
+
+      .tab-panel[hidden] {
+        display: none;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+        gap: 22px;
+        align-items: stretch;
+        margin-bottom: 26px;
+      }
+
+      .hero-main,
+      .diagram,
+      .demo-card,
+      .note-card,
+      .concept-card,
+      .concept-diagram,
+      .component-table,
+      .memory-table {
+        border: 1px solid #d7ddd2;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 18px 60px rgba(37, 51, 44, 0.08);
+      }
+
+      .hero-main {
+        padding: 28px;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: #51705d;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 18ch;
+        margin-bottom: 12px;
+        font-size: clamp(2rem, 4.5vw, 3.35rem);
+        line-height: 1.02;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        margin-bottom: 10px;
+        font-size: clamp(1.25rem, 2.25vw, 1.65rem);
+        line-height: 1.16;
+        letter-spacing: 0;
+      }
+
+      h3 {
+        margin-bottom: 8px;
+        font-size: 1rem;
+      }
+
+      .lead,
+      .explain,
+      .note-card p,
+      .diagram p {
+        color: var(--content-color);
+        line-height: 1.5;
+        font-weight: 500;
+      }
+
+      .lead {
+        max-width: 680px;
+        margin-bottom: 0;
+        font-size: 1.05rem;
+      }
+
+      .diagram {
+        padding: 22px;
+      }
+
+      .flow {
+        display: grid;
+        gap: 8px;
+        margin: 14px 0 0;
+      }
+
+      .flow span {
+        display: block;
+        padding: 10px 12px;
+        border: 1px solid #dce3d8;
+        border-radius: 8px;
+        background: #fbfcf8;
+        color: var(--content-strong);
+        font-weight: 900;
+        line-height: 1.5;
+      }
+
+      .section-title {
+        margin: 34px 0 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .concept-layout {
+        display: grid;
+        grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .slide-nav {
+        position: sticky;
+        top: 18px;
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+        border: 1px solid #d7ddd2;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .slide-nav a {
+        display: block;
+        padding: 9px 10px;
+        border-radius: 8px;
+        color: var(--content-strong);
+        font-size: 0.95rem;
+        font-weight: 900;
+        line-height: 1.5;
+      }
+
+      .slide-nav a:hover {
+        background: var(--accent-bg-soft);
+        text-decoration: none;
+      }
+
+      .concept-stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .concept-card {
+        padding: 22px;
+        scroll-margin-top: 18px;
+      }
+
+      .concept-card ul {
+        margin: 12px 0 0;
+        padding-left: 1.2rem;
+        color: var(--content-color);
+        line-height: 1.5;
+        font-weight: 500;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .concept-diagram {
+        padding: 16px;
+      }
+
+      .diagram-title {
+        margin-bottom: 12px;
+        font-weight: 900;
+      }
+
+      .pipeline {
+        display: grid;
+        gap: 10px;
+      }
+
+      .pipe-row,
+      .pipe-branch {
+        display: grid;
+        gap: 8px;
+      }
+
+      .pipe-row {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        align-items: center;
+      }
+
+      .pipe-branch {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .node,
+      .small-node {
+        min-height: 54px;
+        display: grid;
+        place-items: center;
+        padding: 10px;
+        border: 1px solid #cfd9cf;
+        border-radius: 8px;
+        background: #fbfcf8;
+        color: var(--content-strong);
+        font-weight: 900;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .node.dark {
+        border-color: var(--accent-border);
+        color: var(--accent-text);
+        background: var(--accent-bg);
+      }
+
+      .arrow {
+        color: var(--content-muted);
+        font-weight: 900;
+        text-align: center;
+      }
+
+      .vertical-flow {
+        display: grid;
+        gap: 8px;
+      }
+
+      .vertical-flow .node {
+        min-height: 46px;
+      }
+
+      .component-table,
+      .memory-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+      }
+
+      .component-table th,
+      .component-table td,
+      .memory-table th,
+      .memory-table td {
+        padding: 14px;
+        border-bottom: 1px solid #dfe6dc;
+        text-align: left;
+        vertical-align: top;
+        color: var(--content-color);
+        line-height: 1.5;
+        font-weight: 500;
+      }
+
+      .component-table th,
+      .memory-table th {
+        color: var(--accent-text);
+        background: var(--accent-bg);
+        font-size: 0.8rem;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .component-table tbody tr:nth-child(even),
+      .memory-table tbody tr:nth-child(even) {
+        background: #f4f8f2;
+      }
+
+      .component-table tbody tr:nth-child(odd),
+      .memory-table tbody tr:nth-child(odd) {
+        background: #ffffff;
+      }
+
+      .component-table td:first-child,
+      .memory-table td:first-child {
+        color: var(--content-strong);
+        font-weight: 900;
+      }
+
+      .callout {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid var(--accent-border);
+        border-radius: 8px;
+        background: var(--accent-bg-soft);
+        color: var(--content-color);
+        line-height: 1.5;
+        font-weight: 500;
+      }
+
+      .advantage-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .advantage {
+        padding: 14px;
+        border: 1px solid #dce3d8;
+        border-radius: 8px;
+        background: #fbfcf8;
+      }
+
+      .advantage strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--content-strong);
+      }
+
+      .advantage span {
+        color: var(--content-color);
+        line-height: 1.5;
+        font-weight: 500;
+      }
+
+      .use-case-kicker {
+        margin: 14px 0;
+        padding: 12px 14px;
+        border: 1px solid var(--accent-border);
+        border-radius: 8px;
+        color: var(--content-strong);
+        background: var(--accent-bg-soft);
+        line-height: 1.5;
+        font-weight: 700;
+      }
+
+      .idea-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .idea {
+        padding: 12px;
+        border: 1px solid #dce3d8;
+        border-radius: 8px;
+        background: #fbfcf8;
+      }
+
+      .idea strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--content-strong);
+        font-size: 0.95rem;
+      }
+
+      .idea span {
+        color: var(--content-color);
+        line-height: 1.5;
+        font-weight: 500;
+      }
+
+      .demo-card {
+        display: grid;
+        gap: 14px;
+        align-content: start;
+        padding: 18px;
+      }
+
+      .demo-card.full {
+        grid-column: 1 / -1;
+      }
+
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .badge {
+        white-space: nowrap;
+        padding: 5px 9px;
+        border: 1px solid var(--accent-border);
+        border-radius: 999px;
+        color: var(--accent-text);
+        background: var(--accent-bg-soft);
+        font-size: 0.78rem;
+        font-weight: 900;
+      }
+
+      pre {
+        overflow-x: auto;
+        margin: 0;
+        padding: 14px;
+        border: 1px solid #dbe2d7;
+        border-radius: 8px;
+        color: #e8f4ed;
+        background: #17201b;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      code {
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+
+      .explain {
+        margin-bottom: 0;
+      }
+
+      .run-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+
+      button {
+        min-height: 40px;
+        padding: 0 14px;
+        border: 1px solid #cdd5c9;
+        border-radius: 8px;
+        color: #17201b;
+        background: #ffffff;
+        cursor: pointer;
+        transition:
+          transform 140ms ease,
+          border-color 140ms ease,
+          background 140ms ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        border-color: #768f7c;
+      }
+
+      button.primary {
+        border-color: var(--accent-border);
+        color: var(--accent-text);
+        background: var(--accent-bg);
+        font-weight: 900;
+      }
+
+      button.danger {
+        border-color: #d8b2b2;
+        color: #7d1f1f;
+        background: #fff7f7;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .output {
+        min-height: 64px;
+        margin: 0;
+        padding: 12px;
+        border: 1px solid #dbe2d7;
+        border-radius: 8px;
+        color: #203028;
+        background: #fbfcf8;
+        white-space: pre-wrap;
+      }
+
+      .note-card {
+        margin-top: 18px;
+        padding: 18px;
+      }
+
+      .muted {
+        color: var(--content-muted);
+        font-size: 0.92rem;
+        font-weight: 500;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 900px) {
+        .shell {
+          padding: 18px;
+        }
+
+        .hero,
+        .grid,
+        .concept-layout,
+        .split,
+        .pipe-row,
+        .pipe-branch,
+        .advantage-grid,
+        .idea-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .slide-nav {
+          position: static;
+        }
+
+        h1 {
+          max-width: none;
+          font-size: 3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="tab-switcher" role="tablist" aria-label="Learning sections">
+        <button
+          class="tab-button"
+          id="tab-concepts"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-concepts"
+          data-tab-target="panel-concepts"
+        >
+          Concepts
+        </button>
+        <button
+          class="tab-button"
+          id="tab-demos"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-demos"
+          data-tab-target="panel-demos"
+        >
+          GPU Interaction Demos
+        </button>
+        <button
+          class="tab-button"
+          id="tab-use-cases"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-use-cases"
+          data-tab-target="panel-use-cases"
+        >
+          Banking Use Cases
+        </button>
+      </div>
+
+      <section
+        class="tab-panel"
+        id="panel-concepts"
+        role="tabpanel"
+        aria-labelledby="tab-concepts"
+      >
+        <section class="hero">
+          <div class="hero-main">
+            <p class="eyebrow">Presentation Mode</p>
+            <h1>How WebLLM Runs In A Browser</h1>
+            <p class="lead">
+              WebLLM lets a web page run a language model locally. The browser
+              downloads model artifacts, caches them, prepares an MLC runtime,
+              sends compute work through WebGPU, and streams tokens back to the
+              user interface.
+            </p>
+          </div>
+
+          <aside class="diagram">
+            <div class="flow" aria-label="Concept presentation flow">
+              <span>What WebLLM is</span>
+              <span>What MLC prepares</span>
+              <span>How WebGPU reaches the GPU</span>
+              <span>What gets cached vs loaded</span>
+              <span>Why it matters for banking</span>
+            </div>
+          </aside>
+        </section>
+
+        <div class="concept-layout">
+          <nav class="slide-nav" aria-label="Concept slides">
+            <a href="#big-picture">Big Picture</a>
+            <a href="#why-webllm">Why Use WebLLM</a>
+            <a href="#components">Components</a>
+            <a href="#mlc-workflow">MLC Workflow</a>
+            <a href="#webgpu-component">WebGPU</a>
+            <a href="#webgl-webgpu">WebGL vs WebGPU</a>
+            <a href="#gpu-vram">GPU / VRAM</a>
+            <a href="#indexeddb-cache">IndexedDB / Cache</a>
+            <a href="#load-flow">First Load vs Reload</a>
+            <a href="#gpu-path">Browser To GPU</a>
+            <a href="#prompt-flow">Prompt To Tokens</a>
+            <a href="#memory-storage">Memory And Storage</a>
+            <a href="#banking">Banking Value</a>
+            <a href="#limits">Deployment Considerations</a>
+          </nav>
+
+          <div class="concept-stack">
+            <article class="concept-card" id="big-picture">
+              <div class="split">
+                <div>
+                  <h2>Big Picture: What WebLLM Is</h2>
+                  <p class="lead">
+                    WebLLM is a JavaScript library that lets a browser load and
+                    run supported LLMs locally using WebGPU acceleration.
+                  </p>
+                  <ul>
+                    <li>Runs inside the browser instead of a backend server.</li>
+                    <li>Uses WebGPU to access client-side GPU acceleration.</li>
+                    <li>Downloads model files and caches them in browser storage.</li>
+                    <li>Keeps prompts local unless the app explicitly sends them elsewhere.</li>
+                    <li>Depends on browser support, GPU capability, memory, and model size.</li>
+                  </ul>
+                </div>
+                <div class="concept-diagram">
+                  <div class="diagram-title">End-to-end mental model</div>
+                  <div class="vertical-flow">
+                    <div class="node">User opens web app</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">WebLLM loads model artifacts</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">WebGPU runs model math locally</div>
+                    <div class="arrow">↓</div>
+                    <div class="node dark">Tokens stream back to UI</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="why-webllm">
+              <div class="split">
+                <div>
+                  <h2>Why Use WebLLM</h2>
+                  <p class="lead">
+                    WebLLM is useful when a browser can handle the workload
+                    locally and the application benefits from lower server
+                    dependency, privacy, responsiveness, or offline-friendly
+                    behavior.
+                  </p>
+                  <ul>
+                    <li>No model-serving cluster is needed for supported client-side tasks.</li>
+                    <li>Inference cost can move from server infrastructure to the user's device.</li>
+                    <li>Prompts can stay local, which can improve privacy for suitable use cases.</li>
+                    <li>Small tasks can feel fast because there is no server round trip after load.</li>
+                    <li>A hybrid design can fall back to server inference when client capability is missing.</li>
+                  </ul>
+                </div>
+                <div class="concept-diagram">
+                  <div class="diagram-title">Deployment choices</div>
+                  <div class="vertical-flow">
+                    <div class="node dark">Try local WebLLM first</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">Use browser GPU when available</div>
+                    <div class="arrow">↓ if unsupported, too slow, or too large</div>
+                    <div class="node">Fallback to server-side model</div>
+                  </div>
+                </div>
+              </div>
+              <div class="advantage-grid">
+                <div class="advantage">
+                  <strong>Cost control</strong>
+                  <span>Reduce always-on GPU server or cluster needs for workloads that fit on client devices.</span>
+                </div>
+                <div class="advantage">
+                  <strong>Privacy posture</strong>
+                  <span>Keep prompts and outputs in the browser session when the app does not transmit them.</span>
+                </div>
+                <div class="advantage">
+                  <strong>Latency</strong>
+                  <span>Avoid network round trips during generation after the model has loaded.</span>
+                </div>
+                <div class="advantage">
+                  <strong>Hybrid resilience</strong>
+                  <span>Use server inference as fallback for unsupported browsers, weak devices, or heavier models.</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="components">
+              <h2>Main Components</h2>
+              <p class="lead">
+                The stack is easiest to understand as a set of layers, each
+                doing a specific job.
+              </p>
+              <table class="component-table">
+                <thead>
+                  <tr>
+                    <th>Component</th>
+                    <th>Simple Meaning</th>
+                    <th>Role In The Browser LLM Flow</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>WebLLM</strong></td>
+                    <td>Browser LLM library</td>
+                    <td>Exposes the JavaScript API to load a model and chat.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>MLC</strong></td>
+                    <td>Compiler/runtime layer</td>
+                    <td>Prepares optimized model artifacts and drives execution.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>WASM</strong></td>
+                    <td>Fast compiled browser code</td>
+                    <td>Runs runtime/model support code alongside JavaScript.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>WebGPU</strong></td>
+                    <td>Browser GPU API</td>
+                    <td>Lets the browser submit compute work to the GPU.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>IndexedDB / Cache</strong></td>
+                    <td>Browser storage</td>
+                    <td>Keeps downloaded model artifacts locally.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>GPU / VRAM</strong></td>
+                    <td>Local compute and memory</td>
+                    <td>Runs matrix math and stores active model buffers.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+
+            <article class="concept-card" id="mlc-workflow">
+              <div class="split">
+                <div>
+                  <h2>MLC Workflow</h2>
+                  <p class="lead">
+                    MLC LLM describes three major phases: download
+                    pre-quantized weights, compile/prepare a model library, and
+                    run the chat runtime.
+                  </p>
+                  <ul>
+                    <li>Pre-quantized weights reduce size and make local execution practical.</li>
+                    <li>Model compilation creates backend-specific execution code.</li>
+                    <li>The runtime combines weights plus model library to generate tokens.</li>
+                    <li>Downloaded and compiled artifacts can be cached for later runs.</li>
+                  </ul>
+                  <p class="callout">
+                    Source framing: MLC LLM introduction explains MLC as a
+                    machine-learning compiler and high-performance deployment
+                    engine for LLMs, with phases for weight download, model
+                    compilation, and chat runtime.
+                    <a href="https://llm.mlc.ai/docs/get_started/introduction" target="_blank" rel="noreferrer">MLC docs</a>
+                  </p>
+                </div>
+                <div class="concept-diagram">
+                  <div class="diagram-title">MLC-style workflow</div>
+                  <div class="vertical-flow">
+                    <div class="node">Original / prebuilt model</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">Quantized model weights</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">MLC config + compiled model library</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">Runtime engine</div>
+                    <div class="arrow">↓</div>
+                    <div class="node dark">WebGPU / native GPU execution</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="webgpu-component">
+              <div class="split">
+                <div>
+                  <h2>WebGPU</h2>
+                  <p class="lead">
+                    WebGPU is the browser API that lets JavaScript submit
+                    structured GPU work. WebLLM uses it to run model math on the
+                    client machine instead of relying only on CPU execution.
+                  </p>
+                  <ul>
+                    <li>Creates a GPU adapter and device for the page.</li>
+                    <li>Allocates GPU buffers for input data, outputs, and intermediate work.</li>
+                    <li>Runs compute shaders that perform parallel math.</li>
+                    <li>Submits commands through a GPU queue controlled by the browser.</li>
+                    <li>Maps to Metal, Direct3D, or Vulkan under the browser, depending on OS and browser.</li>
+                  </ul>
+                  <table class="component-table compact-table">
+                    <thead>
+                      <tr>
+                        <th>Browser</th>
+                        <th>Support View</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Chrome / Edge</td>
+                        <td>Best starting point for this POC on WebGPU-capable Windows, macOS, and ChromeOS machines.</td>
+                      </tr>
+                      <tr>
+                        <td>Safari</td>
+                        <td>Recent Safari versions support WebGPU, but device and OS coverage still matters.</td>
+                      </tr>
+                      <tr>
+                        <td>Firefox</td>
+                        <td>Support is rolling out, with stronger coverage on selected desktop platforms.</td>
+                      </tr>
+                      <tr>
+                        <td>Mobile browsers</td>
+                        <td>Availability varies by browser, OS, GPU, and driver. Always check at runtime.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="concept-diagram">
+                  <div class="diagram-title">WebGPU objects</div>
+                  <div class="vertical-flow">
+                    <div class="node">navigator.gpu</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">GPU adapter</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">GPU device</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">Buffers + compute pipeline</div>
+                    <div class="arrow">↓</div>
+                    <div class="node dark">GPU queue executes commands</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="webgl-webgpu">
+              <h2>WebGL vs WebGPU</h2>
+              <p class="lead">
+                WebGL made GPU graphics possible in the browser. WebGPU is the
+                newer browser API designed for modern GPU workloads, including
+                compute-heavy use cases like local LLM inference.
+              </p>
+              <table class="component-table">
+                <thead>
+                  <tr>
+                    <th>Area</th>
+                    <th>WebGL</th>
+                    <th>WebGPU</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Primary design</td>
+                    <td>Built mainly for rendering graphics in the browser.</td>
+                    <td>Built for modern graphics and general GPU compute.</td>
+                  </tr>
+                  <tr>
+                    <td>Programming model</td>
+                    <td>Older OpenGL-style state machine.</td>
+                    <td>More explicit device, buffer, pipeline, and command model.</td>
+                  </tr>
+                  <tr>
+                    <td>Compute support</td>
+                    <td>Compute is indirect and awkward for AI-style workloads.</td>
+                    <td>Compute shaders are first-class, which fits tensor and matrix math better.</td>
+                  </tr>
+                  <tr>
+                    <td>Browser-to-GPU path</td>
+                    <td>Maps to older graphics stacks and compatibility layers.</td>
+                    <td>Maps well to Metal, Direct3D 12, and Vulkan-style modern APIs.</td>
+                  </tr>
+                  <tr>
+                    <td>Fit for WebLLM</td>
+                    <td>Useful historically, but not the right target for browser LLM inference.</td>
+                    <td>The preferred path for WebLLM because it can submit structured GPU compute work.</td>
+                  </tr>
+                  <tr>
+                    <td>Simple takeaway</td>
+                    <td>Great for drawing graphics.</td>
+                    <td>Better for running serious parallel computation in the browser.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+
+            <article class="concept-card" id="gpu-vram">
+              <h2>GPU / VRAM</h2>
+              <p class="lead">
+                The GPU performs the heavy parallel math. VRAM is the memory the
+                GPU uses for model weights, runtime buffers, and token-generation
+                state while inference is active.
+              </p>
+              <table class="component-table">
+                <thead>
+                  <tr>
+                    <th>Term</th>
+                    <th>Simple Meaning</th>
+                    <th>What Gets Allocated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>VRAM</td>
+                    <td>Dedicated memory on many discrete GPUs.</td>
+                    <td>Model weights, input/output buffers, temporary tensors, and KV cache.</td>
+                  </tr>
+                  <tr>
+                    <td>Unified memory</td>
+                    <td>Shared CPU/GPU memory used by systems like Apple Silicon.</td>
+                    <td>The GPU uses part of the shared memory pool for the same model runtime data.</td>
+                  </tr>
+                  <tr>
+                    <td>Model weights</td>
+                    <td>The learned numbers that define the model.</td>
+                    <td>Large fixed buffers loaded so each token can use the model's parameters.</td>
+                  </tr>
+                  <tr>
+                    <td>Activations</td>
+                    <td>Intermediate results produced inside transformer layers.</td>
+                    <td>Temporary working buffers used while each prompt/token is processed.</td>
+                  </tr>
+                  <tr>
+                    <td>KV cache</td>
+                    <td>Stored key/value tensors from previous tokens in attention.</td>
+                    <td>Conversation context memory that grows with prompt and response length.</td>
+                  </tr>
+                  <tr>
+                    <td>Logits/output buffers</td>
+                    <td>Scores for possible next tokens.</td>
+                    <td>Small output data used to select the next token before streaming it back.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="callout">
+                In simple terms: browser storage keeps model files between
+                sessions; VRAM or unified memory holds the active model and
+                working data while the model is running.
+              </p>
+            </article>
+
+            <article class="concept-card" id="indexeddb-cache">
+              <h2>IndexedDB / Cache</h2>
+              <p class="lead">
+                Browser storage keeps downloaded model artifacts on the user's
+                machine, so repeat visits do not need to download the same
+                large files again.
+              </p>
+              <table class="component-table">
+                <thead>
+                  <tr>
+                    <th>Storage Piece</th>
+                    <th>What It Does</th>
+                    <th>Why It Matters For WebLLM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>IndexedDB</td>
+                    <td>Browser database for larger structured and binary data.</td>
+                    <td>Can hold model artifacts or cache metadata for this site origin.</td>
+                  </tr>
+                  <tr>
+                    <td>Cache API</td>
+                    <td>Browser cache for request/response-style resources.</td>
+                    <td>Can store downloaded files so later loads avoid a full network fetch.</td>
+                  </tr>
+                  <tr>
+                    <td>Site origin</td>
+                    <td>Storage is scoped to the page's domain/origin.</td>
+                    <td>Each app gets its own storage boundary in the browser profile.</td>
+                  </tr>
+                  <tr>
+                    <td>Persistence</td>
+                    <td>Data remains after refresh and browser restart.</td>
+                    <td>Model files can remain local until the user clears site data.</td>
+                  </tr>
+                  <tr>
+                    <td>Not VRAM</td>
+                    <td>Storage is disk/browser-profile data, not active GPU memory.</td>
+                    <td>The model still needs to load into runtime/GPU memory before inference.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+
+            <article class="concept-card" id="load-flow">
+              <div class="split">
+                <div>
+                  <h2>First Load vs Second Load</h2>
+                  <p class="lead">
+                    First load is heavy because model artifacts are not yet on
+                    the machine. Later loads can reuse browser storage.
+                  </p>
+                  <ul>
+                    <li>First load downloads model files and stores them locally.</li>
+                    <li>Second load can read those files from cache/IndexedDB.</li>
+                    <li>Both paths still need to initialize the runtime and GPU buffers.</li>
+                    <li>GPU memory is temporary; browser cache is persistent.</li>
+                  </ul>
+                </div>
+                <div class="concept-diagram">
+                  <div class="diagram-title">Load comparison</div>
+                  <div class="pipe-branch">
+                    <div class="node">First load<br />download → cache → initialize</div>
+                    <div class="node">Reload<br />cache → initialize</div>
+                    <div class="node dark">Ready<br />run prompts</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="gpu-path">
+              <h2>Browser To GPU Path</h2>
+              <p class="lead">
+                JavaScript calls WebGPU. The browser validates and translates
+                the work to the operating system's graphics stack.
+              </p>
+              <div class="concept-diagram">
+                <div class="pipe-row" aria-label="Browser to GPU path">
+                  <div class="node">JavaScript</div>
+                  <div class="node">WebGPU API</div>
+                  <div class="node">Browser implementation</div>
+                  <div class="node">Metal / Direct3D / Vulkan</div>
+                  <div class="node dark">GPU hardware</div>
+                </div>
+              </div>
+              <ul>
+                <li>The page usually cannot know the exact native backend.</li>
+                <li>The browser keeps the API portable and safer for web pages.</li>
+                <li>GPU driver and OS support still matter under the browser.</li>
+              </ul>
+            </article>
+
+            <article class="concept-card" id="prompt-flow">
+              <div class="split">
+                <div>
+                  <h2>What Happens When You Send A Prompt</h2>
+                  <p class="lead">
+                    An LLM response is generated one token at a time. WebGPU is
+                    mainly accelerating repeated matrix math.
+                  </p>
+                  <ul>
+                    <li>Text is converted into token IDs.</li>
+                    <li>Model weights and tokens are used in transformer layers.</li>
+                    <li>The GPU produces scores for the next token.</li>
+                    <li>The selected token is appended and the loop repeats.</li>
+                    <li>KV cache keeps conversation context efficient during generation.</li>
+                  </ul>
+                </div>
+                <div class="concept-diagram">
+                  <div class="diagram-title">Prompt to streamed text</div>
+                  <div class="vertical-flow">
+                    <div class="node">Prompt text</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">Tokens</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">Transformer layers on GPU</div>
+                    <div class="arrow">↓</div>
+                    <div class="node">Next token</div>
+                    <div class="arrow">↺ repeat</div>
+                    <div class="node dark">Streamed answer</div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="memory-storage">
+              <h2>Memory And Storage</h2>
+              <p class="lead">
+                Browser storage and GPU memory solve different problems.
+                Confusing them is one of the easiest ways to misunderstand
+                local LLMs.
+              </p>
+              <table class="memory-table">
+                <thead>
+                  <tr>
+                    <th>Thing</th>
+                    <th>Where It Lives</th>
+                    <th>How Long It Lasts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Model files</td>
+                    <td>IndexedDB / Cache API</td>
+                    <td>Persists until site data is cleared.</td>
+                  </tr>
+                  <tr>
+                    <td>Loaded model weights</td>
+                    <td>GPU memory / unified memory</td>
+                    <td>While the model is loaded.</td>
+                  </tr>
+                  <tr>
+                    <td>Prompt text</td>
+                    <td>JavaScript/runtime memory</td>
+                    <td>During the app session unless saved.</td>
+                  </tr>
+                  <tr>
+                    <td>KV cache</td>
+                    <td>GPU/runtime memory</td>
+                    <td>During the active conversation.</td>
+                  </tr>
+                  <tr>
+                    <td>Chat history</td>
+                    <td>App state</td>
+                    <td>Until reset/reload unless app persists it.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </article>
+
+            <article class="concept-card" id="banking">
+              <h2>Why This Matters For Banking</h2>
+              <p class="lead">
+                Client-side LLMs give banks a practical way to bring AI closer
+                to employees and customers while improving privacy, response
+                time, and infrastructure efficiency for the right workloads.
+              </p>
+              <ul>
+                <li>Privacy by design: prompts can stay on the user's device for suitable workflows.</li>
+                <li>Faster experiences: local inference removes server round trips after the model is loaded.</li>
+                <li>Lower infrastructure cost: supported tasks can run without dedicated GPU serving clusters.</li>
+                <li>Stronger field enablement: useful for branch, contact-center, staff-assist, and offline-friendly workflows.</li>
+                <li>Flexible architecture: client-side inference can pair with server-side fallback for higher-scale or policy-sensitive flows.</li>
+              </ul>
+            </article>
+
+            <article class="concept-card" id="limits">
+              <h2>Deployment Considerations</h2>
+              <p class="lead">
+                A strong production design can use WebLLM where it fits best
+                and route heavier, unsupported, or tightly governed flows to
+                server-side services.
+              </p>
+              <ul>
+                <li>Browser readiness: use capability checks to confirm WebGPU support before enabling local inference.</li>
+                <li>Model sizing: choose models that fit the device's GPU or unified memory profile.</li>
+                <li>Download experience: plan first-load messaging and caching for large model artifacts.</li>
+                <li>Observability: track app-level timings and lifecycle states while relying on platform tools for deeper GPU telemetry.</li>
+                <li>Model strategy: combine compact local models with stronger server models when task complexity requires it.</li>
+                <li>Governance: keep regulated decisions inside controlled, auditable, policy-approved workflows.</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="tab-panel"
+        id="panel-use-cases"
+        role="tabpanel"
+        aria-labelledby="tab-use-cases"
+        hidden
+      >
+        <section class="hero">
+          <div class="hero-main">
+            <p class="eyebrow">Banking Opportunity Map</p>
+            <h1>Where WebLLM Can Create Value</h1>
+            <p class="lead">
+              WebLLM is a strong fit for lightweight, privacy-sensitive,
+              latency-sensitive, or offline-friendly banking workflows where a
+              compact model can run locally in the browser.
+            </p>
+          </div>
+
+          <aside class="diagram">
+            <div class="flow" aria-label="Banking use case presentation flow">
+              <span>Customer-facing money movement help</span>
+              <span>Transaction search and explanations</span>
+              <span>Dispute form drafting from selected transactions</span>
+              <span>On-demand spending charts and insights</span>
+              <span>Hybrid fallback for governed workflows</span>
+            </div>
+          </aside>
+        </section>
+
+        <div class="concept-layout">
+          <nav class="slide-nav" aria-label="Banking use case slides">
+            <a href="#use-case-customer-facing-ideas">Customer-Facing Ideas</a>
+            <a href="#use-case-customer-service">Customer Service</a>
+            <a href="#use-case-branch-rm">Branch And RM Assist</a>
+            <a href="#use-case-operations">Operations</a>
+            <a href="#use-case-risk-compliance">Risk And Compliance</a>
+            <a href="#use-case-productivity">Employee Productivity</a>
+          </nav>
+
+          <div class="concept-stack">
+            <article class="concept-card" id="use-case-customer-facing-ideas">
+              <h2>Customer-Facing Use Case Ideas</h2>
+              <p class="lead">
+                These are high-priority customer journeys where WebLLM can make
+                banking experiences feel faster, clearer, and more personal.
+              </p>
+              <ul>
+                <li><strong>Transaction explanation:</strong> Explain confusing merchant names, categories, recurring payments, and fee-related entries.</li>
+                <li><strong>Smart transaction grouping:</strong> Group transactions by merchant, category, recurring pattern, or customer intent for easier review.</li>
+                <li><strong>Next-best action prompts:</strong> Suggest helpful actions such as download statement, start dispute, review subscription, or set alert.</li>
+                <li><strong>Natural-language transaction search:</strong> Let customers ask questions like “Show grocery spending over $100 last month” or “Find subscriptions I paid this year.”</li>
+                <li><strong>Dispute form drafting:</strong> Use selected transaction details and the customer’s explanation to draft form-ready dispute text.</li>
+                <li><strong>Reason-code guidance:</strong> Suggest likely dispute categories such as duplicate charge, goods not received, or unrecognized merchant.</li>
+                <li><strong>Evidence checklist:</strong> Create a customer-friendly list of documents, screenshots, receipts, or merchant communication to attach.</li>
+                <li><strong>Status explanation:</strong> Explain dispute process steps, expected timelines, and what the customer can do next.</li>
+                <li><strong>Monthly spending chart:</strong> Generate a graph by category, merchant, or account for a selected month.</li>
+                <li><strong>Quarterly or yearly trend view:</strong> Build trend summaries such as “travel spend by quarter” or “utility bills this year.”</li>
+                <li><strong>Budget variance explanation:</strong> Explain why spending changed compared with a prior period or a customer-defined budget.</li>
+                <li><strong>Subscription and recurring spend view:</strong> Identify repeat payments and present them as a simple list or trend chart.</li>
+                <li><strong>Card decline explanation:</strong> Explain why a card may have been declined using available reason, merchant, amount, limits, travel status, or fraud-rule context.</li>
+                <li><strong>Budget conversation:</strong> Answer questions like “Where did my dining spend increase this month?” using categorized transaction trends.</li>
+                <li><strong>Fee avoidance guidance:</strong> Explain why a fee occurred and how the customer can avoid the same fee in the next cycle.</li>
+                <li><strong>Fee refund request drafting:</strong> Help draft a polite fee waiver or refund request using the selected fee and customer explanation.</li>
+                <li><strong>Suspicious transaction explainer:</strong> Help customers understand a suspicious charge before deciding whether to dispute, lock the card, or contact support.</li>
+                <li><strong>Statement explainer:</strong> Explain interest, minimum payment, due date, APR, and payoff implications for cards or loans.</li>
+                <li><strong>Application checklist assistant:</strong> Create a clear checklist of documents and steps for loan, credit card, or mortgage applications.</li>
+                <li><strong>Product selection helper:</strong> Compare accounts or cards side by side and explain required documents and eligibility steps in plain language.</li>
+                <li><strong>Plain-language help:</strong> Explain forms, product terms, fees, and digital banking steps in customer-friendly language.</li>
+                <li><strong>Personalized form assistance:</strong> Guide customers through non-sensitive field questions and document requirements.</li>
+                <li><strong>Proactive alert explanation:</strong> Explain overdraft, low-balance, fee, payment, or fraud-alert messages in plain language.</li>
+                <li><strong>Hybrid assistant:</strong> Run simple questions locally and escalate complex or account-specific requests to governed services.</li>
+              </ul>
+            </article>
+
+            <article class="concept-card" id="use-case-customer-service">
+              <h2>Customer Service And Contact Center</h2>
+              <p class="lead">
+                Improve response speed and consistency for common customer
+                questions while helping agents compose clearer replies.
+              </p>
+              <p class="use-case-kicker">
+                How WebLLM helps: local inference can support fast drafting,
+                summarization, and FAQ-style guidance without sending every
+                interaction to a model-serving cluster.
+              </p>
+              <div class="idea-grid">
+                <div class="idea">
+                  <strong>FAQ assistant</strong>
+                  <span>Answers product, fee, servicing, and process questions from approved reference content.</span>
+                </div>
+                <div class="idea">
+                  <strong>Agent response assist</strong>
+                  <span>Summarizes customer intent and drafts a response the agent can review and send.</span>
+                </div>
+                <div class="idea">
+                  <strong>Call or chat wrap-up</strong>
+                  <span>Creates concise after-contact notes for agent review before saving to case systems.</span>
+                </div>
+                <div class="idea">
+                  <strong>Complaint triage</strong>
+                  <span>Suggests likely category, urgency, and next-step guidance for complaint handling teams.</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="use-case-branch-rm">
+              <h2>Branch And Relationship Manager Assist</h2>
+              <p class="lead">
+                Give frontline teams a local assistant for product education,
+                meeting preparation, and customer-ready communication drafts.
+              </p>
+              <p class="use-case-kicker">
+                How WebLLM helps: staff can get quick, plain-language support
+                in branch or field settings, with server fallback for account
+                actions or policy-sensitive workflows.
+              </p>
+              <div class="idea-grid">
+                <div class="idea">
+                  <strong>Product comparison</strong>
+                  <span>Explains differences between checking, savings, card, loan, or treasury products.</span>
+                </div>
+                <div class="idea">
+                  <strong>Meeting preparation</strong>
+                  <span>Turns approved local notes into talking points, questions, and follow-up reminders.</span>
+                </div>
+                <div class="idea">
+                  <strong>Customer message drafting</strong>
+                  <span>Creates polished outreach drafts with selectable tone, length, and reading level.</span>
+                </div>
+                <div class="idea">
+                  <strong>Policy explanation</strong>
+                  <span>Summarizes employee-facing policies in plain language for faster understanding.</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="use-case-operations">
+              <h2>Operations And Back Office</h2>
+              <p class="lead">
+                Help operations teams move faster through routine workflows,
+                handoffs, case notes, and internal communication.
+              </p>
+              <p class="use-case-kicker">
+                How WebLLM helps: repeatable text-heavy work can be assisted
+                locally, reducing wait time and keeping simple tasks away from
+                centralized inference infrastructure.
+              </p>
+              <div class="idea-grid">
+                <div class="idea">
+                  <strong>Procedure explainer</strong>
+                  <span>Rewrites standard operating procedures into concise step-by-step guidance.</span>
+                </div>
+                <div class="idea">
+                  <strong>Ticket summarization</strong>
+                  <span>Condenses internal tickets and suggests routing labels for human confirmation.</span>
+                </div>
+                <div class="idea">
+                  <strong>Operational email drafting</strong>
+                  <span>Drafts case updates, handoff notes, and exception explanations for review.</span>
+                </div>
+                <div class="idea">
+                  <strong>Checklist generation</strong>
+                  <span>Creates repeatable checklist drafts for quality control and process consistency.</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="use-case-risk-compliance">
+              <h2>Risk, Compliance, And Policy Support</h2>
+              <p class="lead">
+                Support faster interpretation of policy language and earlier
+                detection of missing information before formal review.
+              </p>
+              <p class="use-case-kicker">
+                How WebLLM helps: local models can assist with first-pass
+                reading, simplification, and preparation while regulated
+                decisions remain in controlled systems.
+              </p>
+              <div class="idea-grid">
+                <div class="idea">
+                  <strong>Policy simplification</strong>
+                  <span>Turns complex policy passages into employee-friendly explanations and examples.</span>
+                </div>
+                <div class="idea">
+                  <strong>Control checklist assistant</strong>
+                  <span>Suggests checklist items from approved control descriptions for owner review.</span>
+                </div>
+                <div class="idea">
+                  <strong>Missing information review</strong>
+                  <span>Flags gaps in forms, case notes, or intake documents before submission.</span>
+                </div>
+                <div class="idea">
+                  <strong>Redaction support</strong>
+                  <span>Suggests sensitive fields or content categories before documents are shared or uploaded.</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="concept-card" id="use-case-productivity">
+              <h2>Employee Productivity</h2>
+              <p class="lead">
+                Provide a private, responsive assistant for everyday writing,
+                summarization, learning, and approved internal knowledge tasks.
+              </p>
+              <p class="use-case-kicker">
+                How WebLLM helps: employees can use model assistance for
+                low-risk productivity tasks while prompts remain local for
+                suitable workflows.
+              </p>
+              <div class="idea-grid">
+                <div class="idea">
+                  <strong>Writing assistant</strong>
+                  <span>Drafts and rewrites emails, notes, summaries, and internal messages.</span>
+                </div>
+                <div class="idea">
+                  <strong>Knowledge-base Q&A</strong>
+                  <span>Answers questions using approved reference material bundled or cached by the app.</span>
+                </div>
+                <div class="idea">
+                  <strong>Training companion</strong>
+                  <span>Explains concepts, creates practice questions, and supports onboarding materials.</span>
+                </div>
+                <div class="idea">
+                  <strong>Offline-friendly reference</strong>
+                  <span>Supports field or branch teams when connectivity is limited and content is preloaded.</span>
+                </div>
+              </div>
+            </article>
+
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="tab-panel"
+        id="panel-demos"
+        role="tabpanel"
+        aria-labelledby="tab-demos"
+        hidden
+      >
+      <section class="hero">
+        <div class="hero-main">
+          <p class="eyebrow">Browser GPU Learning Lab</p>
+          <h1>WebGPU From JavaScript To GPU</h1>
+          <p class="lead">
+            Run small WebGPU programs, inspect what JavaScript can ask from the
+            browser, then try IndexedDB examples that mirror how a browser app
+            can keep large artifacts locally.
+          </p>
+        </div>
+
+        <aside class="diagram">
+          <p class="eyebrow">Simple Flow</p>
+          <p>
+            JavaScript does not talk directly to Metal, Direct3D, or Vulkan.
+            It calls WebGPU. The browser validates the work and maps it to the
+            operating system's GPU stack.
+          </p>
+          <div class="flow" aria-label="WebGPU execution flow">
+            <span>HTML button</span>
+            <span>JavaScript</span>
+            <span>navigator.gpu</span>
+            <span>WebGPU device and queue</span>
+            <span>Metal / Direct3D / Vulkan</span>
+            <span>GPU hardware</span>
+          </div>
+        </aside>
+      </section>
+
+      <h2 class="section-title">GPU Interaction Demos</h2>
+      <section class="grid" aria-label="WebGPU examples">
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 1</p>
+              <h3>Check WebGPU availability</h3>
+            </div>
+            <span class="badge">Feature check</span>
+          </div>
+          <pre><code>if (!navigator.gpu) {
+  throw new Error("WebGPU is not available");
+}</code></pre>
+          <p class="explain">
+            This checks whether the browser exposes the WebGPU API on this
+            machine right now. It does not load a model or allocate GPU memory.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="checkWebGpu">Run</button>
+          </div>
+          <pre class="output" id="out-checkWebGpu">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 2</p>
+              <h3>Request GPU adapter</h3>
+            </div>
+            <span class="badge">GPU choice</span>
+          </div>
+          <pre><code>const adapter = await navigator.gpu.requestAdapter({
+  powerPreference: "high-performance",
+});</code></pre>
+          <p class="explain">
+            The adapter represents the GPU option selected by the browser. Some
+            hardware details may be hidden to reduce fingerprinting.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="adapterInfo">Run</button>
+          </div>
+          <pre class="output" id="out-adapterInfo">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 3</p>
+              <h3>Request GPU device</h3>
+            </div>
+            <span class="badge">Connection</span>
+          </div>
+          <pre><code>const device = await adapter.requestDevice();
+console.log(device.limits);</code></pre>
+          <p class="explain">
+            The device is this page's active connection to the GPU. Device
+            limits tell us the maximum sizes WebGPU allows this page to use.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="deviceLimits">Run</button>
+          </div>
+          <pre class="output" id="out-deviceLimits">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 4</p>
+              <h3>Allocate GPU buffers</h3>
+            </div>
+            <span class="badge">GPU memory</span>
+          </div>
+          <pre><code>const input = new Float32Array([1, 2, 3, 4]);
+const buffer = device.createBuffer({
+  size: input.byteLength,
+  usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+});</code></pre>
+          <p class="explain">
+            Buffers are chunks of GPU-accessible memory. In LLMs, model weights,
+            activations, and KV cache are also represented as GPU buffers.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="bufferDemo">Run</button>
+          </div>
+          <pre class="output" id="out-bufferDemo">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card full">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 5</p>
+              <h3>Run a compute shader: multiply by 2</h3>
+            </div>
+            <span class="badge">WGSL compute</span>
+          </div>
+          <pre><code>@group(0) @binding(0) var&lt;storage, read&gt; input: array&lt;f32&gt;;
+@group(0) @binding(1) var&lt;storage, read_write&gt; output: array&lt;f32&gt;;
+
+@compute @workgroup_size(1)
+fn main(@builtin(global_invocation_id) id: vec3&lt;u32&gt;) {
+  let i = id.x;
+  output[i] = input[i] * 2.0;
+}</code></pre>
+          <p class="explain">
+            WGSL is WebGPU's shader language. Here each GPU invocation handles
+            one number. The browser maps this GPU work to Metal, Direct3D, or
+            Vulkan internally.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="multiplyByTwo">Run</button>
+          </div>
+          <pre class="output" id="out-multiplyByTwo">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 6</p>
+              <h3>Vector addition</h3>
+            </div>
+            <span class="badge">Parallel math</span>
+          </div>
+          <pre><code>output[i] = left[i] + right[i];</code></pre>
+          <p class="explain">
+            GPUs are good at running the same operation over many values.
+            Vector operations like this are small cousins of model math.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="vectorAdd">Run</button>
+          </div>
+          <pre class="output" id="out-vectorAdd">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 7</p>
+              <h3>2x2 matrix multiplication</h3>
+            </div>
+            <span class="badge">LLM analogy</span>
+          </div>
+          <pre><code>// C = A x B
+C[row, col] =
+  A[row, 0] * B[0, col] +
+  A[row, 1] * B[1, col];</code></pre>
+          <p class="explain">
+            LLMs use much larger matrix operations. This tiny version shows the
+            shape of the same idea without hiding it behind a library.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="matrixMultiply">Run</button>
+          </div>
+          <pre class="output" id="out-matrixMultiply">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card full">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Step 8</p>
+              <h3>CPU vs GPU wall-clock timing</h3>
+            </div>
+            <span class="badge">Timing</span>
+          </div>
+          <pre><code>const start = performance.now();
+// run CPU loop and GPU dispatch
+const elapsed = performance.now() - start;</code></pre>
+          <p class="explain">
+            This compares browser-visible elapsed time. For tiny work, CPU can
+            be faster because GPU setup and readback overhead dominate. GPUs
+            shine when the work is large and parallel.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="timingDemo">Run</button>
+          </div>
+          <pre class="output" id="out-timingDemo">Output will appear here.</pre>
+        </article>
+      </section>
+
+      <div class="note-card">
+        <h3>How this maps to WebLLM</h3>
+        <p>
+          This page creates tiny buffers and simple shaders. WebLLM does the
+          same kind of orchestration at a larger scale: model weights, token
+          data, temporary tensors, and attention cache are placed in
+          GPU-accessible buffers, then optimized kernels run through WebGPU.
+        </p>
+      </div>
+
+      <h2 class="section-title">IndexedDB Demos</h2>
+      <section class="grid" aria-label="IndexedDB examples">
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Storage 1</p>
+              <h3>Open a browser database</h3>
+            </div>
+            <span class="badge">Create DB</span>
+          </div>
+          <pre><code>const request = indexedDB.open("webgpu-learning-demo", 1);
+request.onupgradeneeded = () =&gt; {
+  request.result.createObjectStore("records");
+};</code></pre>
+          <p class="explain">
+            IndexedDB is a local browser database. This creates a database and
+            an object store for this site's origin.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="openDb">Run</button>
+          </div>
+          <pre class="output" id="out-openDb">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Storage 2</p>
+              <h3>Put and get text</h3>
+            </div>
+            <span class="badge">Key/value</span>
+          </div>
+          <pre><code>store.put("hello from IndexedDB", "message");
+const value = await store.get("message");</code></pre>
+          <p class="explain">
+            JavaScript can store and later retrieve app data. IndexedDB is not
+            sent with every HTTP request like cookies often are.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="putGetText">Run</button>
+          </div>
+          <pre class="output" id="out-putGetText">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Storage 3</p>
+              <h3>Store an ArrayBuffer</h3>
+            </div>
+            <span class="badge">Model-cache shape</span>
+          </div>
+          <pre><code>const bytes = new Uint8Array([77, 76, 67, 1, 2, 3]);
+store.put(bytes.buffer, "fake-model-artifact");</code></pre>
+          <p class="explain">
+            Model artifacts are much larger, but the storage idea is similar:
+            binary data can be cached locally and loaded again later.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="arrayBufferDemo">Run</button>
+          </div>
+          <pre class="output" id="out-arrayBufferDemo">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Storage 4</p>
+              <h3>List records</h3>
+            </div>
+            <span class="badge">Inspect</span>
+          </div>
+          <pre><code>const keys = await store.getAllKeys();
+const values = await store.getAll();</code></pre>
+          <p class="explain">
+            Listing records helps you see what this demo has placed in browser
+            storage for this origin.
+          </p>
+          <div class="run-row">
+            <button class="primary" data-demo="listRecords">Run</button>
+          </div>
+          <pre class="output" id="out-listRecords">Output will appear here.</pre>
+        </article>
+
+        <article class="demo-card full">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Storage 5</p>
+              <h3>Delete and clear demo storage</h3>
+            </div>
+            <span class="badge">Cleanup</span>
+          </div>
+          <pre><code>store.delete("message");
+store.clear();</code></pre>
+          <p class="explain">
+            This only affects the demo database named
+            <code>webgpu-learning-demo</code>. It does not clear the WebLLM
+            model cache.
+          </p>
+          <div class="run-row">
+            <button data-demo="deleteMessage">Delete message</button>
+            <button class="danger" data-demo="clearStore">Clear demo store</button>
+          </div>
+          <pre class="output" id="out-deleteMessage">Output will appear here.</pre>
+          <pre class="output" id="out-clearStore">Clear output will appear here.</pre>
+        </article>
+      </section>
+
+      <div class="note-card">
+        <h3>IndexedDB and WebLLM caching</h3>
+        <p>
+          IndexedDB persists across page refreshes and browser restarts until
+          site data is cleared. In the WebLLM POC, the configured cache backend
+          lets WebLLM keep downloaded model artifacts locally so the next load
+          can avoid downloading the full model again.
+        </p>
+      </div>
+      </section>
+    </main>
+
+    <script type="module">
+      const DB_NAME = "webgpu-learning-demo";
+      const STORE_NAME = "records";
+
+      function selectTab(targetId) {
+        document.querySelectorAll("[role='tab']").forEach((tab) => {
+          const isSelected = tab.dataset.tabTarget === targetId;
+          tab.setAttribute("aria-selected", String(isSelected));
+        });
+
+        document.querySelectorAll(".tab-panel").forEach((panel) => {
+          panel.hidden = panel.id !== targetId;
+        });
+
+        if (location.hash !== `#${targetId}`) {
+          history.replaceState(null, "", `#${targetId}`);
+        }
+      }
+
+      document.querySelectorAll("[data-tab-target]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectTab(button.dataset.tabTarget);
+        });
+      });
+
+      const initialPanelId = location.hash.slice(1);
+      if (
+        initialPanelId &&
+        document.getElementById(initialPanelId)?.classList.contains("tab-panel")
+      ) {
+        selectTab(initialPanelId);
+      }
+
+      const outputs = new Map();
+      document.querySelectorAll(".output").forEach((element) => {
+        outputs.set(element.id.replace("out-", ""), element);
+      });
+
+      function writeOutput(id, value) {
+        const output = outputs.get(id);
+        if (!output) return;
+        output.textContent =
+          typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return `${bytes} bytes`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+        return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+      }
+
+      async function getGpuDevice() {
+        if (!navigator.gpu) {
+          throw new Error(
+            "WebGPU is not available in this browser. Try Chrome or Edge on a compatible machine.",
+          );
+        }
+        const adapter = await navigator.gpu.requestAdapter({
+          powerPreference: "high-performance",
+        });
+        if (!adapter) {
+          throw new Error("The browser could not find a compatible GPU adapter.");
+        }
+        const device = await adapter.requestDevice();
+        return { adapter, device };
+      }
+
+      async function runCompute({ inputs, shader, bindings, dispatch }) {
+        const { device } = await getGpuDevice();
+        const buffers = bindings.map((binding) =>
+          device.createBuffer({
+            size: binding.size,
+            usage: binding.usage,
+            mappedAtCreation: Boolean(binding.data),
+          }),
+        );
+
+        bindings.forEach((binding, index) => {
+          if (!binding.data) return;
+          const arrayConstructor = binding.data.constructor;
+          new arrayConstructor(buffers[index].getMappedRange()).set(binding.data);
+          buffers[index].unmap();
+        });
+
+        const shaderModule = device.createShaderModule({ code: shader });
+        const pipeline = device.createComputePipeline({
+          layout: "auto",
+          compute: {
+            module: shaderModule,
+            entryPoint: "main",
+          },
+        });
+
+        const bindGroup = device.createBindGroup({
+          layout: pipeline.getBindGroupLayout(0),
+          entries: buffers
+            .slice(0, inputs.bindingCount)
+            .map((buffer, binding) => ({ binding, resource: { buffer } })),
+        });
+
+        const commandEncoder = device.createCommandEncoder();
+        const pass = commandEncoder.beginComputePass();
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.dispatchWorkgroups(dispatch.x, dispatch.y ?? 1, dispatch.z ?? 1);
+        pass.end();
+        commandEncoder.copyBufferToBuffer(
+          buffers[inputs.outputBufferIndex],
+          0,
+          buffers[inputs.readBufferIndex],
+          0,
+          inputs.outputBytes,
+        );
+        device.queue.submit([commandEncoder.finish()]);
+
+        await buffers[inputs.readBufferIndex].mapAsync(GPUMapMode.READ);
+        const result = new inputs.ResultArray(
+          buffers[inputs.readBufferIndex].getMappedRange().slice(0),
+        );
+        buffers[inputs.readBufferIndex].unmap();
+        buffers.forEach((buffer) => buffer.destroy());
+        return Array.from(result);
+      }
+
+      async function checkWebGpu() {
+        const available = "gpu" in navigator;
+        return [
+          `WebGPU available: ${available ? "yes" : "no"}`,
+          available
+            ? "navigator.gpu exists. This page can request a GPU adapter."
+            : "navigator.gpu is missing. Use a WebGPU-capable browser and machine.",
+        ].join("\n");
+      }
+
+      async function adapterInfo() {
+        const { adapter } = await getGpuDevice();
+        const info = adapter.info ?? {};
+        return {
+          adapterFound: true,
+          vendor: info.vendor || "not exposed by this browser",
+          architecture: info.architecture || "not exposed by this browser",
+          device: info.device || "not exposed by this browser",
+          description: info.description || "not exposed by this browser",
+          features: Array.from(adapter.features ?? []),
+        };
+      }
+
+      async function deviceLimits() {
+        const { device } = await getGpuDevice();
+        return {
+          maxBufferSize: formatBytes(device.limits.maxBufferSize),
+          maxStorageBufferBindingSize: formatBytes(
+            device.limits.maxStorageBufferBindingSize,
+          ),
+          maxComputeInvocationsPerWorkgroup:
+            device.limits.maxComputeInvocationsPerWorkgroup,
+          maxComputeWorkgroupSizeX: device.limits.maxComputeWorkgroupSizeX,
+          maxComputeWorkgroupsPerDimension:
+            device.limits.maxComputeWorkgroupsPerDimension,
+        };
+      }
+
+      async function bufferDemo() {
+        const { device } = await getGpuDevice();
+        const input = new Float32Array([1, 2, 3, 4]);
+        const inputBuffer = device.createBuffer({
+          size: input.byteLength,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        });
+        const outputBuffer = device.createBuffer({
+          size: input.byteLength,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        const readBuffer = device.createBuffer({
+          size: input.byteLength,
+          usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+
+        const summary = {
+          inputValues: Array.from(input),
+          inputBuffer: formatBytes(inputBuffer.size),
+          outputBuffer: formatBytes(outputBuffer.size),
+          readbackBuffer: formatBytes(readBuffer.size),
+          estimatedDemoAllocation: formatBytes(
+            inputBuffer.size + outputBuffer.size + readBuffer.size,
+          ),
+        };
+
+        inputBuffer.destroy();
+        outputBuffer.destroy();
+        readBuffer.destroy();
+        return summary;
+      }
+
+      async function multiplyByTwo() {
+        const input = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8]);
+        const shader = `
+          @group(0) @binding(0) var<storage, read> input: array<f32>;
+          @group(0) @binding(1) var<storage, read_write> output: array<f32>;
+
+          @compute @workgroup_size(1)
+          fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+            let i = id.x;
+            output[i] = input[i] * 2.0;
+          }
+        `;
+
+        const result = await runCompute({
+          inputs: {
+            bindingCount: 2,
+            outputBufferIndex: 1,
+            readBufferIndex: 2,
+            outputBytes: input.byteLength,
+            ResultArray: Float32Array,
+          },
+          shader,
+          dispatch: { x: input.length },
+          bindings: [
+            {
+              data: input,
+              size: input.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            },
+            {
+              size: input.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            },
+            {
+              size: input.byteLength,
+              usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+            },
+          ],
+        });
+
+        return { input: Array.from(input), outputFromGpu: result };
+      }
+
+      async function vectorAdd() {
+        const left = new Float32Array([1, 2, 3, 4]);
+        const right = new Float32Array([10, 20, 30, 40]);
+        const shader = `
+          @group(0) @binding(0) var<storage, read> left: array<f32>;
+          @group(0) @binding(1) var<storage, read> right: array<f32>;
+          @group(0) @binding(2) var<storage, read_write> output: array<f32>;
+
+          @compute @workgroup_size(1)
+          fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+            let i = id.x;
+            output[i] = left[i] + right[i];
+          }
+        `;
+
+        const result = await runCompute({
+          inputs: {
+            bindingCount: 3,
+            outputBufferIndex: 2,
+            readBufferIndex: 3,
+            outputBytes: left.byteLength,
+            ResultArray: Float32Array,
+          },
+          shader,
+          dispatch: { x: left.length },
+          bindings: [
+            {
+              data: left,
+              size: left.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            },
+            {
+              data: right,
+              size: right.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            },
+            {
+              size: left.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            },
+            {
+              size: left.byteLength,
+              usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+            },
+          ],
+        });
+
+        return {
+          left: Array.from(left),
+          right: Array.from(right),
+          outputFromGpu: result,
+        };
+      }
+
+      async function matrixMultiply() {
+        const matrixA = new Float32Array([1, 2, 3, 4]);
+        const matrixB = new Float32Array([5, 6, 7, 8]);
+        const shader = `
+          @group(0) @binding(0) var<storage, read> a: array<f32>;
+          @group(0) @binding(1) var<storage, read> b: array<f32>;
+          @group(0) @binding(2) var<storage, read_write> c: array<f32>;
+
+          @compute @workgroup_size(1, 1)
+          fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+            let row = id.y;
+            let col = id.x;
+            let index = row * 2u + col;
+            c[index] =
+              a[row * 2u + 0u] * b[0u * 2u + col] +
+              a[row * 2u + 1u] * b[1u * 2u + col];
+          }
+        `;
+
+        const result = await runCompute({
+          inputs: {
+            bindingCount: 3,
+            outputBufferIndex: 2,
+            readBufferIndex: 3,
+            outputBytes: matrixA.byteLength,
+            ResultArray: Float32Array,
+          },
+          shader,
+          dispatch: { x: 2, y: 2 },
+          bindings: [
+            {
+              data: matrixA,
+              size: matrixA.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            },
+            {
+              data: matrixB,
+              size: matrixB.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            },
+            {
+              size: matrixA.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            },
+            {
+              size: matrixA.byteLength,
+              usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+            },
+          ],
+        });
+
+        return {
+          matrixA: [
+            [matrixA[0], matrixA[1]],
+            [matrixA[2], matrixA[3]],
+          ],
+          matrixB: [
+            [matrixB[0], matrixB[1]],
+            [matrixB[2], matrixB[3]],
+          ],
+          outputFromGpu: [
+            [result[0], result[1]],
+            [result[2], result[3]],
+          ],
+        };
+      }
+
+      async function timingDemo() {
+        const size = 4096;
+        const input = new Float32Array(size).map((_, index) => index);
+
+        const cpuStart = performance.now();
+        const cpuResult = input.map((value) => value * 2);
+        const cpuMs = performance.now() - cpuStart;
+
+        const gpuStart = performance.now();
+        const gpuResult = await multiplyLargeArray(input);
+        const gpuMs = performance.now() - gpuStart;
+
+        return [
+          `CPU result sample: [${Array.from(cpuResult.slice(0, 6)).join(", ")} ...]`,
+          `GPU result sample: [${gpuResult.slice(0, 6).join(", ")} ...]`,
+          `CPU wall-clock time: ${cpuMs.toFixed(3)} ms`,
+          `GPU wall-clock time: ${gpuMs.toFixed(3)} ms`,
+          "",
+          "Note: for small arrays, CPU can win because GPU setup/readback overhead is included.",
+        ].join("\n");
+      }
+
+      async function multiplyLargeArray(input) {
+        const shader = `
+          @group(0) @binding(0) var<storage, read> input: array<f32>;
+          @group(0) @binding(1) var<storage, read_write> output: array<f32>;
+
+          @compute @workgroup_size(64)
+          fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+            let i = id.x;
+            if (i < ${input.length}u) {
+              output[i] = input[i] * 2.0;
+            }
+          }
+        `;
+
+        return runCompute({
+          inputs: {
+            bindingCount: 2,
+            outputBufferIndex: 1,
+            readBufferIndex: 2,
+            outputBytes: input.byteLength,
+            ResultArray: Float32Array,
+          },
+          shader,
+          dispatch: { x: Math.ceil(input.length / 64) },
+          bindings: [
+            {
+              data: input,
+              size: input.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            },
+            {
+              size: input.byteLength,
+              usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            },
+            {
+              size: input.byteLength,
+              usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+            },
+          ],
+        });
+      }
+
+      function openDatabase() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, 1);
+          request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+              db.createObjectStore(STORE_NAME);
+            }
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function withStore(mode, callback) {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, mode);
+          const store = tx.objectStore(STORE_NAME);
+          let callbackResult;
+
+          tx.oncomplete = () => {
+            db.close();
+            resolve(callbackResult);
+          };
+          tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+          };
+
+          callbackResult = callback(store);
+        });
+      }
+
+      function idbRequest(request) {
+        return new Promise((resolve, reject) => {
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      async function openDb() {
+        const db = await openDatabase();
+        const stores = Array.from(db.objectStoreNames);
+        db.close();
+        return {
+          database: DB_NAME,
+          objectStores: stores,
+          role: "Local browser database for this origin",
+        };
+      }
+
+      async function putGetText() {
+        await withStore("readwrite", (store) => {
+          store.put("hello from IndexedDB", "message");
+        });
+        const value = await withStore("readonly", (store) =>
+          idbRequest(store.get("message")),
+        );
+        return { key: "message", value };
+      }
+
+      async function arrayBufferDemo() {
+        const bytes = new Uint8Array([77, 76, 67, 1, 2, 3, 4, 5]);
+        await withStore("readwrite", (store) => {
+          store.put(bytes.buffer, "fake-model-artifact");
+        });
+        const buffer = await withStore("readonly", (store) =>
+          idbRequest(store.get("fake-model-artifact")),
+        );
+        return {
+          key: "fake-model-artifact",
+          storedBytes: Array.from(new Uint8Array(buffer)),
+          byteLength: buffer.byteLength,
+          analogy: "Small binary blob standing in for a much larger model artifact",
+        };
+      }
+
+      async function listRecords() {
+        const records = await withStore("readonly", (store) => {
+          const keysRequest = store.getAllKeys();
+          const valuesRequest = store.getAll();
+          return Promise.all([
+            idbRequest(keysRequest),
+            idbRequest(valuesRequest),
+          ]).then(([keys, values]) =>
+            keys.map((key, index) => {
+              const value = values[index];
+              if (value instanceof ArrayBuffer) {
+                return {
+                  key,
+                  type: "ArrayBuffer",
+                  bytes: value.byteLength,
+                };
+              }
+              return {
+                key,
+                type: typeof value,
+                value,
+              };
+            }),
+          );
+        });
+        return records.length ? records : "No records found. Run the put/get demos first.";
+      }
+
+      async function deleteMessage() {
+        await withStore("readwrite", (store) => {
+          store.delete("message");
+        });
+        return "Deleted key: message";
+      }
+
+      async function clearStore() {
+        await withStore("readwrite", (store) => {
+          store.clear();
+        });
+        return "Cleared all records in the demo object store.";
+      }
+
+      const demos = {
+        checkWebGpu,
+        adapterInfo,
+        deviceLimits,
+        bufferDemo,
+        multiplyByTwo,
+        vectorAdd,
+        matrixMultiply,
+        timingDemo,
+        openDb,
+        putGetText,
+        arrayBufferDemo,
+        listRecords,
+        deleteMessage,
+        clearStore,
+      };
+
+      document.querySelectorAll("[data-demo]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const demoName = button.dataset.demo;
+          button.disabled = true;
+          writeOutput(demoName, "Running...");
+          try {
+            const result = await demos[demoName]();
+            writeOutput(demoName, result);
+          } catch (error) {
+            writeOutput(
+              demoName,
+              error instanceof Error ? `Error: ${error.message}` : String(error),
+            );
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
