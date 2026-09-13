@@ -11,15 +11,17 @@
     />
     <style>
       :root {
-        color: #18211d;
-        background: #f4f6f1;
-        --content-color: #24342b;
-        --content-strong: #193526;
-        --content-muted: #34483d;
-        --accent-bg: #dfe9e1;
-        --accent-border: #8ea39a;
-        --accent-text: #1d3327;
-        --accent-bg-soft: #f2f6f2;
+        color: #2a1516;
+        background: #f8f3ef;
+        --content-color: #4b2a28;
+        --content-strong: #3a1115;
+        --content-muted: #6f5752;
+        --accent-bg: #f8dfdc;
+        --accent-border: #d9b9b0;
+        --accent-text: #8f1019;
+        --accent-bg-soft: #fff3f1;
+        --accent-gold: #f6c445;
+        --accent-gold-soft: #fff5d6;
         font-family:
           Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
           "Segoe UI", sans-serif;
@@ -43,7 +45,7 @@
       }
 
       a {
-        color: #205f3b;
+        color: #b11b24;
         font-weight: 800;
         text-decoration: none;
       }
@@ -72,7 +74,7 @@
         gap: 10px;
         margin-bottom: 22px;
         padding: 8px;
-        border: 1px solid #d7ddd2;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.72);
       }
@@ -108,10 +110,10 @@
       .concept-diagram,
       .component-table,
       .memory-table {
-        border: 1px solid #d7ddd2;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.82);
-        box-shadow: 0 18px 60px rgba(37, 51, 44, 0.08);
+        box-shadow: 0 18px 60px rgba(73, 32, 28, 0.1);
       }
 
       .hero-main {
@@ -120,7 +122,7 @@
 
       .eyebrow {
         margin: 0 0 8px;
-        color: #51705d;
+        color: #9f3330;
         font-size: 0.78rem;
         font-weight: 900;
         letter-spacing: 0;
@@ -182,9 +184,9 @@
       .flow span {
         display: block;
         padding: 10px 12px;
-        border: 1px solid #dce3d8;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
-        background: #fbfcf8;
+        background: #fffaf6;
         color: var(--content-strong);
         font-weight: 900;
         line-height: 1.5;
@@ -213,7 +215,7 @@
         display: grid;
         gap: 8px;
         padding: 14px;
-        border: 1px solid #d7ddd2;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
         background: rgba(255, 255, 255, 0.82);
       }
@@ -293,9 +295,9 @@
         display: grid;
         place-items: center;
         padding: 10px;
-        border: 1px solid #cfd9cf;
+        border: 1px solid #d9b9b0;
         border-radius: 8px;
-        background: #fbfcf8;
+        background: #fffaf6;
         color: var(--content-strong);
         font-weight: 900;
         line-height: 1.5;
@@ -336,7 +338,7 @@
       .memory-table th,
       .memory-table td {
         padding: 14px;
-        border-bottom: 1px solid #dfe6dc;
+        border-bottom: 1px solid #ead8d2;
         text-align: left;
         vertical-align: top;
         color: var(--content-color);
@@ -355,7 +357,7 @@
 
       .component-table tbody tr:nth-child(even),
       .memory-table tbody tr:nth-child(even) {
-        background: #f4f8f2;
+        background: #fff3f1;
       }
 
       .component-table tbody tr:nth-child(odd),
@@ -389,9 +391,9 @@
 
       .advantage {
         padding: 14px;
-        border: 1px solid #dce3d8;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
-        background: #fbfcf8;
+        background: #fffaf6;
       }
 
       .advantage strong {
@@ -426,9 +428,9 @@
 
       .idea {
         padding: 12px;
-        border: 1px solid #dce3d8;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
-        background: #fbfcf8;
+        background: #fffaf6;
       }
 
       .idea strong {
@@ -477,10 +479,10 @@
         overflow-x: auto;
         margin: 0;
         padding: 14px;
-        border: 1px solid #dbe2d7;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
-        color: #e8f4ed;
-        background: #17201b;
+        color: #fff5d6;
+        background: #2a1516;
         font-size: 0.9rem;
         line-height: 1.5;
       }
@@ -504,9 +506,9 @@
       button {
         min-height: 40px;
         padding: 0 14px;
-        border: 1px solid #cdd5c9;
+        border: 1px solid #d9b9b0;
         border-radius: 8px;
-        color: #17201b;
+        color: #2a1516;
         background: #ffffff;
         cursor: pointer;
         transition:
@@ -517,7 +519,7 @@
 
       button:hover:not(:disabled) {
         transform: translateY(-1px);
-        border-color: #768f7c;
+        border-color: #9f3330;
       }
 
       button.primary {
@@ -528,9 +530,9 @@
       }
 
       button.danger {
-        border-color: #d8b2b2;
-        color: #7d1f1f;
-        background: #fff7f7;
+        border-color: #d9b9b0;
+        color: #8f1019;
+        background: #fff3f1;
       }
 
       button:disabled {
@@ -542,10 +544,10 @@
         min-height: 64px;
         margin: 0;
         padding: 12px;
-        border: 1px solid #dbe2d7;
+        border: 1px solid #ead8d2;
         border-radius: 8px;
-        color: #203028;
-        background: #fbfcf8;
+        color: #3a1115;
+        background: #fffaf6;
         white-space: pre-wrap;
       }
 
