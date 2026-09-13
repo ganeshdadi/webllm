@@ -171,6 +171,15 @@
         font-size: 1.05rem;
       }
 
+      p,
+      li {
+        color: var(--content-color);
+      }
+
+      strong {
+        color: var(--content-strong);
+      }
+
       .diagram {
         padding: 22px;
       }
@@ -508,7 +517,7 @@
         padding: 0 14px;
         border: 1px solid #d9b9b0;
         border-radius: 8px;
-        color: #2a1516;
+        color: var(--content-strong);
         background: #ffffff;
         cursor: pointer;
         transition:
@@ -546,7 +555,7 @@
         padding: 12px;
         border: 1px solid #ead8d2;
         border-radius: 8px;
-        color: #3a1115;
+        color: var(--content-strong);
         background: #fffaf6;
         white-space: pre-wrap;
       }
