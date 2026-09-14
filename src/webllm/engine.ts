@@ -307,7 +307,9 @@ export function createTransactionSearchRequest(
       ],
       stream: true,
       ...GENERATION_CONFIG,
-      max_tokens: 900,
+      temperature: 0,
+      top_p: 1,
+      max_tokens: 140,
     },
   };
 }
@@ -336,7 +338,9 @@ export function createTransactionVisualizationRequest(
       ],
       stream: true,
       ...GENERATION_CONFIG,
-      max_tokens: 1000,
+      temperature: 0,
+      top_p: 1,
+      max_tokens: 220,
     },
   };
 }

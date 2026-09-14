@@ -740,10 +740,101 @@ export default function App() {
       .filter((transaction): transaction is MockTransaction => Boolean(transaction));
   }
 
+  function transactionMatchesQueryGuard(
+    transaction: MockTransaction,
+    query: string,
+  ) {
+    const normalized = query.toLowerCase();
+    const searchableText = [
+      transaction.merchant,
+      transaction.category,
+      transaction.accountLabel,
+      transaction.sampleIssueType,
+      transaction.month,
+      ...transaction.tags,
+    ]
+      .join(" ")
+      .toLowerCase();
+    const amountMatch = normalized.match(
+      /(?:over|above|greater than|more than)\s*\$?(\d+(?:\.\d+)?)/,
+    );
+    const minimumAmount = amountMatch ? Number(amountMatch[1]) : null;
+    const categoryIntents: string[][] = [];
+
+    if (normalized.includes("grocery") || normalized.includes("groceries")) {
+      categoryIntents.push(["grocery", "groceries"]);
+    }
+    if (normalized.includes("travel")) {
+      categoryIntents.push(["travel", "airline", "flight", "hotel", "lodging"]);
+    }
+    if (normalized.includes("bill") || normalized.includes("utility")) {
+      categoryIntents.push(["bill", "utility", "utilities", "electric"]);
+    }
+    if (normalized.includes("subscription") || normalized.includes("recurring")) {
+      categoryIntents.push(["subscription", "subscriptions", "recurring"]);
+    }
+    if (normalized.includes("card")) {
+      categoryIntents.push(["card"]);
+    }
+    if (normalized.includes("checking")) {
+      categoryIntents.push(["checking", "debit"]);
+    }
+
+    const monthNames = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+    ];
+    const requestedMonth = monthNames.find((month) =>
+      normalized.includes(month),
+    );
+    const wantsDispute =
+      normalized.includes("dispute") ||
+      normalized.includes("suspicious") ||
+      normalized.includes("unrecognized") ||
+      normalized.includes("wrong") ||
+      normalized.includes("duplicate");
+
+    if (minimumAmount !== null && transaction.amountValue <= minimumAmount) {
+      return false;
+    }
+    if (
+      requestedMonth &&
+      transaction.month.toLowerCase() !== requestedMonth
+    ) {
+      return false;
+    }
+    if (wantsDispute && transaction.sampleIssueType === "N/A") {
+      return false;
+    }
+    if (categoryIntents.length > 0) {
+      return categoryIntents.some((intentTerms) =>
+        intentTerms.some((term) => searchableText.includes(term)),
+      );
+    }
+
+    return true;
+  }
+
+  function validateModelSelectedTransactions(ids: string[], query: string) {
+    return findTransactionsByIds(ids).filter((transaction) =>
+      transactionMatchesQueryGuard(transaction, query),
+    );
+  }
+
   function buildSearchSummaryMarkdown(query: string, results: MockTransaction[]) {
     return [
       "### Search interpretation",
-      `WebLLM selected transaction IDs for: ${query}`,
+      `WebLLM selected transaction IDs for: ${query}. The app then validated those IDs against the visible transaction dataset.`,
       "",
       "### Matching transactions",
       results.length > 0
@@ -796,6 +887,7 @@ export default function App() {
       "Output requirements:",
       "- Return only matching transaction IDs.",
       "- Use exact id values from the provided dataset.",
+      "- Select the fewest transaction IDs that satisfy the query. Do not return unrelated IDs.",
       "- If no transactions match, return an empty matchedTransactionIds array.",
       "- Include all relevant matches, including multi-intent searches like bill payments and travel payments.",
       "- For amount queries such as over, above, more than, or greater than, compare the request amount to amountValue.",
@@ -842,7 +934,10 @@ export default function App() {
       } catch {
         matchedTransactionIds = extractTransactionIds(rawResponse);
       }
-      const results = findTransactionsByIds(matchedTransactionIds);
+      const results = validateModelSelectedTransactions(
+        matchedTransactionIds,
+        trimmed,
+      );
       setTransactionSearchResults(results);
       setTransactionSearchSummary(buildSearchSummaryMarkdown(trimmed, results));
       updateModelCall(logId, { status: "complete" });
@@ -895,6 +990,7 @@ export default function App() {
       "Output requirements:",
       "- Return only chart grouping data.",
       "- Use exact id values from the provided dataset.",
+      "- Select the fewest transaction IDs that satisfy the chart request. Do not return unrelated IDs.",
       "- If no transactions match, return an empty chartData array.",
       "- For recurring or subscription charts, group recurring/subscription transactions by merchant unless the customer asks for another grouping.",
       "- For travel-by-month charts, group travel transactions by month.",
@@ -961,7 +1057,10 @@ export default function App() {
           ?.map((point) => {
             const transactionIds =
               point.transactionIds?.filter((id) => validIds.has(id)) ?? [];
-            const transactions = findTransactionsByIds(transactionIds);
+            const transactions = validateModelSelectedTransactions(
+              transactionIds,
+              trimmed,
+            );
 
             return {
               label: point.label?.trim() || "Other",
