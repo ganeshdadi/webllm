@@ -721,12 +721,6 @@ export default function App() {
   }
 
   function buildTransactionSearchPrompt(query: string) {
-    const example = {
-      matchedTransactionIds: ["txn-utility-electric"],
-      explanationMarkdown:
-        "### Search interpretation\nThe model interpreted the customer request as bill-related payments.\n\n### Matching transactions\n- Metro Electric Utility matched because it is a utility bill.\n\n### Helpful next actions\n- Review merchant details or create a spending alert.",
-    };
-
     return [
       "Perform this natural-language transaction search using the full transaction dataset below.",
       "",
@@ -739,9 +733,15 @@ export default function App() {
       "- You decide which transaction IDs match the customer's request.",
       "- Use only transaction IDs from the provided dataset.",
       "- Include all relevant matches, including multi-intent searches like bill payments and travel payments.",
+      "- Do not copy placeholder values. Replace them with the actual matching IDs and explanation for the customer query.",
       "- Return one fenced ```json block and no text outside the block.",
-      "- The JSON must match this shape:",
-      JSON.stringify(example, null, 2),
+      "- The JSON must use this shape:",
+      [
+        "{",
+        '  "matchedTransactionIds": ["actual-transaction-id-from-dataset"],',
+        '  "explanationMarkdown": "### Search interpretation\\nExplain how you interpreted the actual customer query.\\n\\n### Matching transactions\\n- Explain why each selected transaction matches.\\n\\n### Helpful next actions\\n- Suggest one or two relevant actions."',
+        "}",
+      ].join("\n"),
     ].join("\n");
   }
 
@@ -819,26 +819,6 @@ export default function App() {
   }
 
   function buildVisualizationPrompt(query: string) {
-    const example = {
-      chartTitle: "Travel spending by month",
-      chartData: [
-        {
-          label: "August",
-          amount: 376.1,
-          count: 2,
-          transactionIds: ["txn-rideshare-unrecognized", "txn-hotel-wrong-amount"],
-        },
-        {
-          label: "September",
-          amount: 438.65,
-          count: 1,
-          transactionIds: ["txn-airline"],
-        },
-      ],
-      explanationMarkdown:
-        "### Chart interpretation\nThe model grouped travel-related transactions by month.\n\n### Key takeaways\n- September has the largest travel spend in this sample.\n\n### Suggested next actions\n- Review travel merchants or compare with another month.",
-    };
-
     return [
       "Create transaction visualization data from the full transaction dataset below.",
       "",
@@ -851,9 +831,23 @@ export default function App() {
       "- You decide which transactions are relevant and how to group them for the requested chart.",
       "- Use only transaction IDs from the provided dataset.",
       "- Calculate each chartData amount from the included transaction amounts.",
+      "- Do not copy placeholder values. Replace them with the actual chart title, labels, transaction IDs, and explanation for the customer request.",
       "- Return one fenced ```json block and no text outside the block.",
-      "- The JSON must match this shape:",
-      JSON.stringify(example, null, 2),
+      "- The JSON must use this shape:",
+      [
+        "{",
+        '  "chartTitle": "Short title for the actual requested chart",',
+        '  "chartData": [',
+        "    {",
+        '      "label": "Actual group label",',
+        '      "amount": 0,',
+        '      "count": 0,',
+        '      "transactionIds": ["actual-transaction-id-from-dataset"]',
+        "    }",
+        "  ],",
+        '  "explanationMarkdown": "### Chart interpretation\\nExplain the actual chart grouping.\\n\\n### Key takeaways\\n- Mention the largest or most important group.\\n\\n### Suggested next actions\\n- Suggest one or two relevant actions."',
+        "}",
+      ].join("\n"),
     ].join("\n");
   }
 
