@@ -97,6 +97,22 @@ type ChartDataPoint = {
   count: number;
 };
 
+type TransactionSearchModelOutput = {
+  matchedTransactionIds?: string[];
+  explanationMarkdown?: string;
+};
+
+type TransactionVisualizationModelOutput = {
+  chartTitle?: string;
+  chartData?: Array<{
+    label?: string;
+    amount?: number;
+    count?: number;
+    transactionIds?: string[];
+  }>;
+  explanationMarkdown?: string;
+};
+
 function renderInlineMarkdown(text: string): ReactNode[] {
   return text
     .split(/(\*\*[^*]+\*\*)/g)
@@ -662,72 +678,70 @@ export default function App() {
     }
   }
 
-  function searchMockTransactions(query: string) {
-    const normalized = query.toLowerCase();
-    const words = normalized
-      .split(/[^a-z0-9]+/)
-      .filter((word) => word.length > 2);
-    const amountMatch = normalized.match(/(?:over|above|greater than|more than)\s*\$?(\d+)/);
-    const minimumAmount = amountMatch ? Number(amountMatch[1]) : null;
-    const wantsDispute =
-      normalized.includes("dispute") ||
-      normalized.includes("suspicious") ||
-      normalized.includes("unrecognized") ||
-      normalized.includes("wrong") ||
-      normalized.includes("duplicate");
-
-    return MOCK_TRANSACTIONS.filter((transaction) => {
-      const searchableText = [
-        transaction.merchant,
-        transaction.category,
-        transaction.accountLabel,
-        transaction.sampleIssueType,
-        transaction.month,
-        ...transaction.tags,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      const amountMatches =
-        minimumAmount === null || transaction.amountValue > minimumAmount;
-      const wordMatches =
-        words.length === 0 ||
-        words.some((word) => {
-          if (word === "paid" || word === "show" || word === "find") {
-            return false;
-          }
-          return searchableText.includes(word);
-        });
-      const disputeMatches =
-        !wantsDispute || transaction.sampleIssueType !== "N/A";
-
-      return amountMatches && wordMatches && disputeMatches;
-    });
+  function serializeTransactionsForModel() {
+    return JSON.stringify(
+      MOCK_TRANSACTIONS.map((transaction) => ({
+        id: transaction.id,
+        merchant: transaction.merchant,
+        amount: transaction.amount,
+        amountValue: transaction.amountValue,
+        date: transaction.date,
+        month: transaction.month,
+        category: transaction.category,
+        accountLabel: transaction.accountLabel,
+        issueMarker: transaction.sampleIssueType,
+        tags: transaction.tags,
+      })),
+      null,
+      2,
+    );
   }
 
-  function buildTransactionSearchPrompt(results: MockTransaction[]) {
-    const resultLines =
-      results.length === 0
-        ? "- No transactions matched the local filter."
-        : results
-            .map(
-              (transaction) =>
-                `- ${transaction.date}: ${transaction.merchant}, ${transaction.amount}, ${transaction.category}, ${transaction.accountLabel}, issue marker: ${transaction.sampleIssueType}`,
-            )
-            .join("\n");
+  function extractJsonBlock<T>(text: string): T {
+    const fencedJson =
+      text.match(/```json\s*([\s\S]*?)```/i) ??
+      text.match(/```\s*([\s\S]*?)```/);
+    const jsonStart = text.indexOf("{");
+    if (!fencedJson && jsonStart === -1) {
+      throw new Error("WebLLM response did not include a JSON object.");
+    }
+    const jsonText = fencedJson?.[1] ?? text.slice(jsonStart);
+
+    return JSON.parse(jsonText) as T;
+  }
+
+  function findTransactionsByIds(ids: string[] = []) {
+    const transactionsById = new Map(
+      MOCK_TRANSACTIONS.map((transaction) => [transaction.id, transaction]),
+    );
+
+    return ids
+      .map((id) => transactionsById.get(id))
+      .filter((transaction): transaction is MockTransaction => Boolean(transaction));
+  }
+
+  function buildTransactionSearchPrompt(query: string) {
+    const example = {
+      matchedTransactionIds: ["txn-utility-electric"],
+      explanationMarkdown:
+        "### Search interpretation\nThe model interpreted the customer request as bill-related payments.\n\n### Matching transactions\n- Metro Electric Utility matched because it is a utility bill.\n\n### Helpful next actions\n- Review merchant details or create a spending alert.",
+    };
 
     return [
-      "Explain this natural-language transaction search.",
+      "Perform this natural-language transaction search using the full transaction dataset below.",
       "",
-      `Customer search query: ${transactionSearchQuery}`,
+      `Customer search query: ${query}`,
       "",
-      "Local search results:",
-      resultLines,
+      "Full transaction dataset:",
+      serializeTransactionsForModel(),
       "",
       "Output requirements:",
-      "- Explain how the query was interpreted.",
-      "- Summarize the matching transactions.",
-      "- Suggest helpful next actions like view details, download results, create chart, set alert, or start a dispute when relevant.",
+      "- You decide which transaction IDs match the customer's request.",
+      "- Use only transaction IDs from the provided dataset.",
+      "- Include all relevant matches, including multi-intent searches like bill payments and travel payments.",
+      "- Return one fenced ```json block and no text outside the block.",
+      "- The JSON must match this shape:",
+      JSON.stringify(example, null, 2),
     ].join("\n");
   }
 
@@ -735,28 +749,37 @@ export default function App() {
     const trimmed = transactionSearchQuery.trim();
     if (!canChat || !trimmed) return;
 
-    const results = searchMockTransactions(trimmed);
-    setTransactionSearchResults(results);
-    setTransactionSearchSummary("");
+    setTransactionSearchResults([]);
+    setTransactionSearchSummary(
+      "WebLLM is searching the full transaction dataset...",
+    );
     setError(null);
     setIsGenerating(true);
     setProgress((current) => ({
       ...current,
       phase: "generating",
-      text: "Explaining transaction search results on the client GPU...",
+      text: "Searching transactions with WebLLM on the client GPU...",
     }));
 
-    const searchPrompt = buildTransactionSearchPrompt(results);
+    const searchPrompt = buildTransactionSearchPrompt(trimmed);
     const logId = startModelCall(
       "Transaction Search",
       createTransactionSearchRequest(searchPrompt),
     );
 
+    let rawResponse = "";
     try {
       await streamTransactionSearchSummary(searchPrompt, (content) => {
-        setTransactionSearchSummary(content);
+        rawResponse = content;
         updateModelCall(logId, { response: content });
       });
+      const parsed =
+        extractJsonBlock<TransactionSearchModelOutput>(rawResponse);
+      const results = findTransactionsByIds(parsed.matchedTransactionIds);
+      setTransactionSearchResults(results);
+      setTransactionSearchSummary(
+        parsed.explanationMarkdown || "WebLLM returned matching transactions.",
+      );
       updateModelCall(logId, { status: "complete" });
       setProgress((current) => ({
         ...current,
@@ -767,9 +790,20 @@ export default function App() {
       const message =
         caught instanceof Error ? caught.message : "Transaction search failed.";
       setError(message);
-      setTransactionSearchSummary(`Generation failed: ${message}`);
+      setTransactionSearchSummary(
+        [
+          "### Unable to render structured search results",
+          message,
+          "",
+          rawResponse
+            ? "The raw WebLLM response is still available in the Model Calls tab."
+            : "",
+        ].join("\n"),
+      );
       updateModelCall(logId, {
-        response: `Generation failed: ${message}`,
+        response: rawResponse
+          ? `${rawResponse}\n\nStructured parsing failed: ${message}`
+          : `Generation failed: ${message}`,
         status: "error",
       });
       setProgress((current) => ({ ...current, phase: "error", text: message }));
@@ -784,122 +818,42 @@ export default function App() {
     setTransactionSearchSummary("");
   }
 
-  function aggregateTransactions(
-    transactions: MockTransaction[],
-    getLabel: (transaction: MockTransaction) => string,
-  ) {
-    const totals = new Map<string, ChartDataPoint>();
-    transactions.forEach((transaction) => {
-      const label = getLabel(transaction);
-      const current = totals.get(label) ?? { label, amount: 0, count: 0 };
-      totals.set(label, {
-        label,
-        amount: current.amount + transaction.amountValue,
-        count: current.count + 1,
-      });
-    });
-
-    return Array.from(totals.values()).sort((left, right) => {
-      if (right.amount !== left.amount) return right.amount - left.amount;
-      return left.label.localeCompare(right.label);
-    });
-  }
-
-  function createChartFromQuery(query: string) {
-    const normalized = query.toLowerCase();
-    const isTravel = normalized.includes("travel");
-    const isMerchant =
-      normalized.includes("merchant") || normalized.includes("top");
-    const isAccount =
-      normalized.includes("card") ||
-      normalized.includes("checking") ||
-      normalized.includes("account");
-    const isRecurring =
-      normalized.includes("recurring") ||
-      normalized.includes("subscription") ||
-      normalized.includes("subscriptions");
-    const isMonthly =
-      normalized.includes("month") ||
-      normalized.includes("monthly") ||
-      normalized.includes("trend") ||
-      normalized.includes("quarter") ||
-      normalized.includes("year");
-
-    let scopedTransactions = MOCK_TRANSACTIONS;
-    let title = "Spending by category";
-    let data = aggregateTransactions(scopedTransactions, (transaction) =>
-      transaction.category,
-    );
-
-    if (isRecurring) {
-      scopedTransactions = MOCK_TRANSACTIONS.filter((transaction) =>
-        transaction.tags.some((tag) =>
-          ["recurring", "subscription", "subscriptions"].includes(tag),
-        ),
-      );
-      title = "Recurring and subscription spend";
-      data = aggregateTransactions(
-        scopedTransactions,
-        (transaction) => transaction.merchant,
-      );
-    } else if (isTravel && isMonthly) {
-      scopedTransactions = MOCK_TRANSACTIONS.filter(
-        (transaction) => transaction.category === "Travel",
-      );
-      title = "Travel spending by month";
-      data = aggregateTransactions(
-        scopedTransactions,
-        (transaction) => transaction.month,
-      );
-    } else if (isMerchant) {
-      title = "Top merchants by spend";
-      data = aggregateTransactions(
-        scopedTransactions,
-        (transaction) => transaction.merchant,
-      ).slice(0, 6);
-    } else if (isAccount) {
-      title = "Spending by account/card";
-      data = aggregateTransactions(
-        scopedTransactions,
-        (transaction) => transaction.accountLabel,
-      );
-    } else if (isMonthly) {
-      title = "Monthly spending trend";
-      data = aggregateTransactions(
-        scopedTransactions,
-        (transaction) => transaction.month,
-      );
-    }
-
-    return { title, data };
-  }
-
-  function buildVisualizationPrompt(title: string, data: ChartDataPoint[]) {
-    const total = data.reduce((sum, point) => sum + point.amount, 0);
-    const dataLines =
-      data.length === 0
-        ? "- No transactions matched the chart request."
-        : data
-            .map(
-              (point) =>
-                `- ${point.label}: $${point.amount.toFixed(2)} across ${point.count} transaction(s)`,
-            )
-            .join("\n");
+  function buildVisualizationPrompt(query: string) {
+    const example = {
+      chartTitle: "Travel spending by month",
+      chartData: [
+        {
+          label: "August",
+          amount: 376.1,
+          count: 2,
+          transactionIds: ["txn-rideshare-unrecognized", "txn-hotel-wrong-amount"],
+        },
+        {
+          label: "September",
+          amount: 438.65,
+          count: 1,
+          transactionIds: ["txn-airline"],
+        },
+      ],
+      explanationMarkdown:
+        "### Chart interpretation\nThe model grouped travel-related transactions by month.\n\n### Key takeaways\n- September has the largest travel spend in this sample.\n\n### Suggested next actions\n- Review travel merchants or compare with another month.",
+    };
 
     return [
-      "Explain this transaction visualization.",
+      "Create transaction visualization data from the full transaction dataset below.",
       "",
-      `Customer chart request: ${visualizationQuery}`,
-      `Generated chart: ${title}`,
-      `Total represented spend: $${total.toFixed(2)}`,
+      `Customer chart request: ${query}`,
       "",
-      "Aggregated chart data:",
-      dataLines,
+      "Full transaction dataset:",
+      serializeTransactionsForModel(),
       "",
       "Output requirements:",
-      "- Explain what the chart shows in plain language.",
-      "- Mention the largest category, merchant, month, or account when visible.",
-      "- Suggest useful next actions such as compare prior month, create alert, review merchant details, or export chart.",
+      "- You decide which transactions are relevant and how to group them for the requested chart.",
+      "- Use only transaction IDs from the provided dataset.",
+      "- Calculate each chartData amount from the included transaction amounts.",
+      "- Return one fenced ```json block and no text outside the block.",
+      "- The JSON must match this shape:",
+      JSON.stringify(example, null, 2),
     ].join("\n");
   }
 
@@ -907,34 +861,61 @@ export default function App() {
     const trimmed = visualizationQuery.trim();
     if (!canChat || !trimmed) return;
 
-    const nextChart = createChartFromQuery(trimmed);
-    setChartTitle(nextChart.title);
-    setChartData(nextChart.data);
-    setChartSummary("");
+    setChartTitle("WebLLM-generated chart");
+    setChartData([]);
+    setChartSummary(
+      "WebLLM is selecting and grouping transactions for the chart...",
+    );
     setError(null);
     setIsGenerating(true);
     setProgress((current) => ({
       ...current,
       phase: "generating",
-      text: "Explaining transaction visualization on the client GPU...",
+      text: "Creating transaction visualization with WebLLM on the client GPU...",
     }));
 
-    const visualizationPrompt = buildVisualizationPrompt(
-      nextChart.title,
-      nextChart.data,
-    );
+    const visualizationPrompt = buildVisualizationPrompt(trimmed);
     const logId = startModelCall(
       "Transaction Visualization",
       createTransactionVisualizationRequest(visualizationPrompt),
     );
 
+    let rawResponse = "";
     try {
       await streamTransactionVisualizationSummary(
         visualizationPrompt,
         (content) => {
-          setChartSummary(content);
+          rawResponse = content;
           updateModelCall(logId, { response: content });
         },
+      );
+      const parsed =
+        extractJsonBlock<TransactionVisualizationModelOutput>(rawResponse);
+      const validIds = new Set(
+        MOCK_TRANSACTIONS.map((transaction) => transaction.id),
+      );
+      const nextChartData =
+        parsed.chartData
+          ?.map((point) => {
+            const transactionIds =
+              point.transactionIds?.filter((id) => validIds.has(id)) ?? [];
+            const transactions = findTransactionsByIds(transactionIds);
+
+            return {
+              label: point.label?.trim() || "Other",
+              amount: transactions.reduce(
+                (total, transaction) => total + transaction.amountValue,
+                0,
+              ),
+              count: transactions.length,
+            };
+          })
+          .filter((point) => point.amount > 0 || point.count > 0) ?? [];
+
+      setChartTitle(parsed.chartTitle?.trim() || "WebLLM-generated chart");
+      setChartData(nextChartData);
+      setChartSummary(
+        parsed.explanationMarkdown || "WebLLM returned chart data.",
       );
       updateModelCall(logId, { status: "complete" });
       setProgress((current) => ({
@@ -946,9 +927,20 @@ export default function App() {
       const message =
         caught instanceof Error ? caught.message : "Visualization failed.";
       setError(message);
-      setChartSummary(`Generation failed: ${message}`);
+      setChartSummary(
+        [
+          "### Unable to render structured chart data",
+          message,
+          "",
+          rawResponse
+            ? "The raw WebLLM response is still available in the Model Calls tab."
+            : "",
+        ].join("\n"),
+      );
       updateModelCall(logId, {
-        response: `Generation failed: ${message}`,
+        response: rawResponse
+          ? `${rawResponse}\n\nStructured parsing failed: ${message}`
+          : `Generation failed: ${message}`,
         status: "error",
       });
       setProgress((current) => ({ ...current, phase: "error", text: message }));
@@ -1518,7 +1510,7 @@ export default function App() {
                 </div>
                 {!canChat && (
                   <p className="helper-text">
-                    Load the model before asking WebLLM to explain the results.
+                    Load the model before asking WebLLM to search transactions.
                   </p>
                 )}
               </section>
@@ -1526,7 +1518,7 @@ export default function App() {
               <section className="search-results-card">
                 <div className="section-heading">
                   <p className="eyebrow">Step 2</p>
-                  <h3>Local matches</h3>
+                  <h3>WebLLM-selected matches</h3>
                 </div>
                 {transactionSearchResults.length > 0 ? (
                   <div className="result-list">
@@ -1548,10 +1540,19 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="empty-state compact">
-                    <h3>No search run yet.</h3>
+                    <h3>
+                      {isGenerating && activeTab === "txn-search"
+                        ? "WebLLM is searching."
+                        : transactionSearchSummary
+                        ? "No matching transactions."
+                        : "No search run yet."}
+                    </h3>
                     <p>
-                      Pick a suggested query or write your own, then search the
-                      transaction list.
+                      {isGenerating && activeTab === "txn-search"
+                        ? "The model is reading the full transaction dataset and selecting matching IDs."
+                        : transactionSearchSummary
+                        ? "WebLLM did not return any valid transaction IDs for this query."
+                        : "Pick a suggested query or write your own, then let WebLLM search the transaction list."}
                     </p>
                   </div>
                 )}
@@ -1640,7 +1641,7 @@ export default function App() {
                 </div>
                 {!canChat && (
                   <p className="helper-text">
-                    Load the model before asking WebLLM to explain the chart.
+                    Load the model before asking WebLLM to build the chart.
                   </p>
                 )}
               </section>
@@ -1648,7 +1649,11 @@ export default function App() {
               <section className="chart-panel">
                 <div className="section-heading">
                   <p className="eyebrow">Step 2</p>
-                  <h3>{chartData.length > 0 ? chartTitle : "Local chart"}</h3>
+                  <h3>
+                    {chartData.length > 0
+                      ? chartTitle
+                      : "WebLLM-generated chart"}
+                  </h3>
                 </div>
                 {chartData.length > 0 ? (
                   <div className="bar-chart">
@@ -1681,10 +1686,19 @@ export default function App() {
                   </div>
                 ) : (
                   <div className="empty-state compact">
-                    <h3>No chart yet.</h3>
+                    <h3>
+                      {isGenerating && activeTab === "txn-visuals"
+                        ? "WebLLM is building the chart."
+                        : chartSummary
+                        ? "No chart data returned."
+                        : "No chart yet."}
+                    </h3>
                     <p>
-                      Choose a suggested chart request or type your own, then
-                      generate a local visualization.
+                      {isGenerating && activeTab === "txn-visuals"
+                        ? "The model is selecting transactions and grouping them for the requested visualization."
+                        : chartSummary
+                        ? "WebLLM did not return any renderable chart points for this request."
+                        : "Choose a suggested chart request or type your own, then let WebLLM select and group transactions."}
                     </p>
                   </div>
                 )}

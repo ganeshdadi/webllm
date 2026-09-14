@@ -6,8 +6,9 @@ A browser-based banking assistant that runs a compact language model locally wit
 
 - **Banking Prompts**: Ask banking questions and get locally generated responses in the browser.
 - **Dispute Form Filling**: Select a transaction, add dispute details, and generate a structured draft.
-- **Transaction Search**: Search transactions with natural language and get an explanation of matching results.
-- **Transaction Visualization**: Generate simple spending charts and receive a locally generated interpretation.
+- **Transaction Search**: Ask WebLLM to select matching transactions from the full sample dataset and explain the results.
+- **Transaction Visualization**: Ask WebLLM to select, group, and describe transaction chart data from the full sample dataset.
+- **Model Calls**: Inspect each WebLLM request and response, including the transaction dataset sent to the model.
 - **WebLLM Learning Page**: Review WebLLM, WebGPU, IndexedDB, caching, and banking use-case concepts at `/webllm-demo.html`.
 - **Simple Markdown Rendering**: Assistant responses render headings, bullets, paragraphs, and bold text as HTML.
 
@@ -63,7 +64,8 @@ npm run build
 1. Start with an explanation prompt, such as available balance versus current balance.
 2. Try a customer communication prompt, such as rewriting a declined payment message.
 3. Use a structured prompt, such as creating a checklist or summarizing a policy.
-4. Move to the transaction search or visualization tabs to show guided banking workflows.
+4. Move to the transaction search or visualization tabs to show WebLLM selecting and grouping transactions.
+5. Open the Model Calls tab to inspect the request payload and model response behind each workflow.
 
 ## Notes
 

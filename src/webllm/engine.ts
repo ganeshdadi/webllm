@@ -294,10 +294,10 @@ export function createTransactionSearchRequest(
           role: "system",
           content: [
             "You are a local browser-only banking transaction search assistant.",
-            "Use only the transaction search query and search results provided by the user.",
-            "Do not claim to access accounts, balances, card systems, or bank records beyond the provided results.",
-            "Explain why the listed transactions match the customer's natural-language search.",
-            "Generate concise output with these headings: Search interpretation, Matching transactions, Customer-friendly summary, Helpful next actions.",
+            "Use only the customer search query and full transaction dataset provided by the user.",
+            "Do not claim to access accounts, balances, card systems, or bank records beyond the provided transaction dataset.",
+            "You decide which provided transaction IDs match the customer's natural-language search.",
+            "Return exactly one fenced JSON block with matchedTransactionIds and explanationMarkdown.",
             "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
           ].join(" "),
         },
@@ -305,7 +305,7 @@ export function createTransactionSearchRequest(
       ],
       stream: true,
       ...GENERATION_CONFIG,
-      max_tokens: 600,
+      max_tokens: 900,
     },
   };
 }
@@ -321,10 +321,10 @@ export function createTransactionVisualizationRequest(
           role: "system",
           content: [
             "You are a local browser-only banking transaction visualization assistant.",
-            "Use only the chart request and aggregated chart data provided by the user.",
-            "Do not claim to access accounts, balances, card systems, or bank records beyond the provided chart data.",
-            "Explain the chart in customer-friendly language and call out simple spending patterns.",
-            "Generate concise output with these headings: Chart interpretation, Key takeaways, Suggested next actions.",
+            "Use only the customer chart request and full transaction dataset provided by the user.",
+            "Do not claim to access accounts, balances, card systems, or bank records beyond the provided transaction dataset.",
+            "You decide which provided transactions are relevant and how to group them for the requested chart.",
+            "Return exactly one fenced JSON block with chartTitle, chartData, and explanationMarkdown.",
             "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
           ].join(" "),
         },
@@ -332,7 +332,7 @@ export function createTransactionVisualizationRequest(
       ],
       stream: true,
       ...GENERATION_CONFIG,
-      max_tokens: 600,
+      max_tokens: 1000,
     },
   };
 }
