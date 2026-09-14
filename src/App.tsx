@@ -732,16 +732,12 @@ export default function App() {
       "Output requirements:",
       "- You decide which transaction IDs match the customer's request.",
       "- Use only transaction IDs from the provided dataset.",
+      "- If no transactions match, return an empty matchedTransactionIds array.",
       "- Include all relevant matches, including multi-intent searches like bill payments and travel payments.",
-      "- Do not copy placeholder values. Replace them with the actual matching IDs and explanation for the customer query.",
+      "- Do not invent transaction IDs.",
       "- Return one fenced ```json block and no text outside the block.",
-      "- The JSON must use this shape:",
-      [
-        "{",
-        '  "matchedTransactionIds": ["actual-transaction-id-from-dataset"],',
-        '  "explanationMarkdown": "### Search interpretation\\nExplain how you interpreted the actual customer query.\\n\\n### Matching transactions\\n- Explain why each selected transaction matches.\\n\\n### Helpful next actions\\n- Suggest one or two relevant actions."',
-        "}",
-      ].join("\n"),
+      "- The JSON object must contain matchedTransactionIds as an array of exact ID strings from the dataset.",
+      "- The JSON object must contain explanationMarkdown as a markdown string with Search interpretation, Matching transactions, and Helpful next actions sections.",
     ].join("\n");
   }
 
@@ -830,24 +826,13 @@ export default function App() {
       "Output requirements:",
       "- You decide which transactions are relevant and how to group them for the requested chart.",
       "- Use only transaction IDs from the provided dataset.",
-      "- Calculate each chartData amount from the included transaction amounts.",
-      "- Do not copy placeholder values. Replace them with the actual chart title, labels, transaction IDs, and explanation for the customer request.",
+      "- If no transactions match, return an empty chartData array.",
+      "- Do not invent transaction IDs.",
       "- Return one fenced ```json block and no text outside the block.",
-      "- The JSON must use this shape:",
-      [
-        "{",
-        '  "chartTitle": "Short title for the actual requested chart",',
-        '  "chartData": [',
-        "    {",
-        '      "label": "Actual group label",',
-        '      "amount": 0,',
-        '      "count": 0,',
-        '      "transactionIds": ["actual-transaction-id-from-dataset"]',
-        "    }",
-        "  ],",
-        '  "explanationMarkdown": "### Chart interpretation\\nExplain the actual chart grouping.\\n\\n### Key takeaways\\n- Mention the largest or most important group.\\n\\n### Suggested next actions\\n- Suggest one or two relevant actions."',
-        "}",
-      ].join("\n"),
+      "- The JSON object must contain chartTitle as a short string for the actual requested chart.",
+      "- The JSON object must contain chartData as an array. Each chartData item must contain label and transactionIds.",
+      "- Each transactionIds array must contain exact ID strings from the dataset. The app will calculate display amounts and counts from those IDs.",
+      "- The JSON object must contain explanationMarkdown as a markdown string with Chart interpretation, Key takeaways, and Suggested next actions sections.",
     ].join("\n");
   }
 
