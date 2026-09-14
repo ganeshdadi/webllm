@@ -299,6 +299,8 @@ h3 {
 .demo-panel,
 .chat-panel,
 .dispute-panel,
+.explanation-panel,
+.complaint-panel,
 .search-panel,
 .visualization-panel,
 .model-calls-panel {
@@ -478,6 +480,8 @@ h3 {
 }
 
 .dispute-panel,
+.explanation-panel,
+.complaint-panel,
 .search-panel,
 .visualization-panel,
 .model-calls-panel {
@@ -504,6 +508,26 @@ h3 {
 .dispute-workspace {
   display: grid;
   grid-template-columns: 0.85fr 1fr 1fr;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  background: var(--color-surface-tint);
+}
+
+.explanation-workspace {
+  display: grid;
+  grid-template-columns: 0.85fr 1fr 1fr;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
+  background: var(--color-surface-tint);
+}
+
+.complaint-workspace {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.4fr);
   gap: 14px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -980,6 +1004,8 @@ h3 {
   }
 
   .dispute-workspace,
+  .explanation-workspace,
+  .complaint-workspace,
   .search-workspace,
   .visualization-workspace,
   .model-calls-workspace {
@@ -1024,6 +1050,8 @@ h3 {
   .messages,
   .composer,
   .dispute-workspace,
+  .explanation-workspace,
+  .complaint-workspace,
   .search-workspace,
   .visualization-workspace,
   .model-calls-workspace {

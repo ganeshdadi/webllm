@@ -219,6 +219,54 @@ export async function streamTransactionSearchSummary(
   return fullText;
 }
 
+export async function streamTransactionExplanation(
+  userPrompt: string,
+  onToken: (content: string) => void,
+): Promise<string> {
+  if (!engineInstance) {
+    throw new Error("Model is not loaded yet.");
+  }
+
+  const chunks = await engineInstance.chat.completions.create(
+    createTransactionExplanationRequest(userPrompt).request,
+  );
+
+  let fullText = "";
+  for await (const chunk of chunks) {
+    const token = chunk.choices[0]?.delta.content ?? "";
+    if (token) {
+      fullText += token;
+      onToken(fullText);
+    }
+  }
+
+  return fullText;
+}
+
+export async function streamComplaintIntake(
+  userPrompt: string,
+  onToken: (content: string) => void,
+): Promise<string> {
+  if (!engineInstance) {
+    throw new Error("Model is not loaded yet.");
+  }
+
+  const chunks = await engineInstance.chat.completions.create(
+    createComplaintIntakeRequest(userPrompt).request,
+  );
+
+  let fullText = "";
+  for await (const chunk of chunks) {
+    const token = chunk.choices[0]?.delta.content ?? "";
+    if (token) {
+      fullText += token;
+      onToken(fullText);
+    }
+  }
+
+  return fullText;
+}
+
 export async function streamTransactionVisualizationSummary(
   userPrompt: string,
   onToken: (content: string) => void,
@@ -271,6 +319,60 @@ export function createDisputeDraftRequest(
             "Do not claim to submit disputes, access bank systems, verify accounts, or make final decisions.",
             "Generate a structured draft with these headings: Suggested dispute reason/category, Completed dispute summary, Customer narrative, Evidence checklist, Questions still needed before submission, Review note.",
             "Keep the output concise, practical, customer-friendly, and clearly marked as a draft for review.",
+            "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
+          ].join(" "),
+        },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+      ...GENERATION_CONFIG,
+      max_tokens: 700,
+    },
+  };
+}
+
+export function createTransactionExplanationRequest(
+  userPrompt: string,
+): WebLLMRequestMetadata {
+  return {
+    api: "engine.chat.completions.create",
+    request: {
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a local browser-only banking transaction explanation assistant.",
+            "Use only the single transaction and customer question provided by the user.",
+            "Do not claim to access accounts, balances, card systems, merchant systems, or bank records beyond the provided transaction.",
+            "Explain confusing merchant names, category, amount, recurring clues, and possible next actions in plain language.",
+            "Use markdown headings: Transaction summary, Why this may appear, Things to check, Suggested next actions.",
+            "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
+          ].join(" "),
+        },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+      ...GENERATION_CONFIG,
+      max_tokens: 650,
+    },
+  };
+}
+
+export function createComplaintIntakeRequest(
+  userPrompt: string,
+): WebLLMRequestMetadata {
+  return {
+    api: "engine.chat.completions.create",
+    request: {
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a local browser-only banking complaint intake assistant.",
+            "Use only the customer complaint text provided by the user.",
+            "Structure the complaint for internal review without claiming to resolve, escalate, submit, or access bank systems.",
+            "Use markdown headings: Issue summary, Likely category, Customer impact, Sentiment and urgency, Missing information, Suggested next steps.",
+            "Keep the output concise, operational, and suitable for an associate to review.",
             "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
           ].join(" "),
         },

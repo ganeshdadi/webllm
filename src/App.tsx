@@ -20,7 +20,9 @@ import {
 import {
   clearModelCache,
   createBankingReplyRequest,
+  createComplaintIntakeRequest,
   createDisputeDraftRequest,
+  createTransactionExplanationRequest,
   createTransactionSearchRequest,
   createTransactionVisualizationRequest,
   getCacheStatus,
@@ -28,7 +30,9 @@ import {
   loadBankingEngine,
   resetChat,
   streamBankingReply,
+  streamComplaintIntake,
   streamDisputeDraft,
+  streamTransactionExplanation,
   streamTransactionSearchSummary,
   streamTransactionVisualizationSummary,
   type LoadPhase,
@@ -47,6 +51,8 @@ type ChatMessage = {
 type DemoTab =
   | "prompt-lab"
   | "dispute"
+  | "txn-explanation"
+  | "complaint-intake"
   | "txn-search"
   | "txn-visuals"
   | "model-calls";
@@ -54,6 +60,8 @@ type DemoTab =
 type ModelCallSource =
   | "Banking Prompts"
   | "Dispute Form Filling"
+  | "Transaction Explanation"
+  | "Complaint Intake"
   | "Transaction Search"
   | "Transaction Visualization";
 
@@ -380,6 +388,12 @@ const VISUALIZATION_SAMPLES = [
   "Recurring and subscription spend",
 ];
 
+const COMPLAINT_SAMPLES = [
+  "I called twice about a refund that still has not posted. The merchant says they sent it, but I keep seeing the charge and I am frustrated.",
+  "My debit card was declined at the grocery store even though I thought my paycheck had deposited this morning.",
+  "I was charged a monthly maintenance fee and do not understand why because I usually meet the balance requirement.",
+];
+
 const blankDisputeForm: DisputeFormState = {
   disputeReason: DISPUTE_REASONS[0],
   customerExplanation: "",
@@ -402,6 +416,15 @@ export default function App() {
     disputeReason: MOCK_TRANSACTIONS[0].sampleIssueType,
   });
   const [disputeDraft, setDisputeDraft] = useState("");
+  const [selectedExplanationTransactionId, setSelectedExplanationTransactionId] =
+    useState(MOCK_TRANSACTIONS[7].id);
+  const [transactionExplanationQuestion, setTransactionExplanationQuestion] =
+    useState(
+      "Explain what this transaction may be and what a customer should check next.",
+    );
+  const [transactionExplanation, setTransactionExplanation] = useState("");
+  const [complaintText, setComplaintText] = useState(COMPLAINT_SAMPLES[0]);
+  const [complaintIntake, setComplaintIntake] = useState("");
   const [transactionSearchQuery, setTransactionSearchQuery] = useState(
     SEARCH_SAMPLES[0],
   );
@@ -431,6 +454,13 @@ export default function App() {
         (transaction) => transaction.id === selectedTransactionId,
       ) ?? MOCK_TRANSACTIONS[0],
     [selectedTransactionId],
+  );
+  const selectedExplanationTransaction = useMemo(
+    () =>
+      MOCK_TRANSACTIONS.find(
+        (transaction) => transaction.id === selectedExplanationTransactionId,
+      ) ?? MOCK_TRANSACTIONS[7],
+    [selectedExplanationTransactionId],
   );
   const selectedModelCall = useMemo(
     () =>
@@ -674,6 +704,154 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
+  }
+
+  function handleSelectExplanationTransaction(transaction: MockTransaction) {
+    setSelectedExplanationTransactionId(transaction.id);
+    setTransactionExplanation("");
+  }
+
+  function buildTransactionExplanationPrompt() {
+    return [
+      "Explain this selected transaction for a banking customer.",
+      "",
+      "Customer question:",
+      transactionExplanationQuestion,
+      "",
+      "Selected transaction:",
+      `- Merchant: ${selectedExplanationTransaction.merchant}`,
+      `- Amount: ${selectedExplanationTransaction.amount}`,
+      `- Date: ${selectedExplanationTransaction.date}`,
+      `- Category: ${selectedExplanationTransaction.category}`,
+      `- Account/card label: ${selectedExplanationTransaction.accountLabel}`,
+      `- Issue marker: ${selectedExplanationTransaction.sampleIssueType}`,
+      `- Tags: ${selectedExplanationTransaction.tags.join(", ")}`,
+      "",
+      "Output requirements:",
+      "- Explain the transaction in customer-friendly language.",
+      "- Mention likely merchant/category clues from the provided fields.",
+      "- Suggest practical next actions such as review receipt, check subscription, set alert, or start a dispute when relevant.",
+      "- Keep it concise.",
+    ].join("\n");
+  }
+
+  async function handleGenerateTransactionExplanation() {
+    if (!canChat || !transactionExplanationQuestion.trim()) return;
+
+    setError(null);
+    setIsGenerating(true);
+    setTransactionExplanation("");
+    setProgress((current) => ({
+      ...current,
+      phase: "generating",
+      text: "Explaining selected transaction on the client GPU...",
+    }));
+
+    const explanationPrompt = buildTransactionExplanationPrompt();
+    const logId = startModelCall(
+      "Transaction Explanation",
+      createTransactionExplanationRequest(explanationPrompt),
+    );
+
+    try {
+      await streamTransactionExplanation(explanationPrompt, (content) => {
+        setTransactionExplanation(content);
+        updateModelCall(logId, { response: content });
+      });
+      updateModelCall(logId, { status: "complete" });
+      setProgress((current) => ({
+        ...current,
+        phase: "ready",
+        text: "Ready for the next banking workflow.",
+      }));
+    } catch (caught) {
+      const message =
+        caught instanceof Error
+          ? caught.message
+          : "Transaction explanation failed.";
+      setError(message);
+      setTransactionExplanation(`Generation failed: ${message}`);
+      updateModelCall(logId, {
+        response: `Generation failed: ${message}`,
+        status: "error",
+      });
+      setProgress((current) => ({ ...current, phase: "error", text: message }));
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  function handleResetTransactionExplanation() {
+    setSelectedExplanationTransactionId(MOCK_TRANSACTIONS[7].id);
+    setTransactionExplanationQuestion(
+      "Explain what this transaction may be and what a customer should check next.",
+    );
+    setTransactionExplanation("");
+  }
+
+  function buildComplaintIntakePrompt() {
+    return [
+      "Structure this customer complaint for banking complaint intake review.",
+      "",
+      "Customer complaint:",
+      complaintText,
+      "",
+      "Output requirements:",
+      "- Identify the likely issue category.",
+      "- Summarize the customer impact and urgency.",
+      "- List missing information an associate may need.",
+      "- Suggest practical next steps for review.",
+      "- Keep it concise and operational.",
+    ].join("\n");
+  }
+
+  async function handleGenerateComplaintIntake() {
+    if (!canChat || !complaintText.trim()) return;
+
+    setError(null);
+    setIsGenerating(true);
+    setComplaintIntake("");
+    setProgress((current) => ({
+      ...current,
+      phase: "generating",
+      text: "Structuring complaint intake on the client GPU...",
+    }));
+
+    const complaintPrompt = buildComplaintIntakePrompt();
+    const logId = startModelCall(
+      "Complaint Intake",
+      createComplaintIntakeRequest(complaintPrompt),
+    );
+
+    try {
+      await streamComplaintIntake(complaintPrompt, (content) => {
+        setComplaintIntake(content);
+        updateModelCall(logId, { response: content });
+      });
+      updateModelCall(logId, { status: "complete" });
+      setProgress((current) => ({
+        ...current,
+        phase: "ready",
+        text: "Ready for the next banking workflow.",
+      }));
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : "Complaint intake failed.";
+      setError(message);
+      setComplaintIntake(`Generation failed: ${message}`);
+      updateModelCall(logId, {
+        response: `Generation failed: ${message}`,
+        status: "error",
+      });
+      setProgress((current) => ({ ...current, phase: "error", text: message }));
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  function handleResetComplaintIntake() {
+    setComplaintText(COMPLAINT_SAMPLES[0]);
+    setComplaintIntake("");
   }
 
   function serializeTransactionsForModel() {
@@ -1326,6 +1504,24 @@ export default function App() {
             </button>
             <button
               role="tab"
+              aria-selected={activeTab === "txn-explanation"}
+              aria-controls="panel-txn-explanation"
+              onClick={() => setActiveTab("txn-explanation")}
+            >
+              <FileText aria-hidden="true" />
+              Transaction Explanation
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === "complaint-intake"}
+              aria-controls="panel-complaint-intake"
+              onClick={() => setActiveTab("complaint-intake")}
+            >
+              <AlertTriangle aria-hidden="true" />
+              Complaint Intake
+            </button>
+            <button
+              role="tab"
               aria-selected={activeTab === "txn-search"}
               aria-controls="panel-txn-search"
               onClick={() => setActiveTab("txn-search")}
@@ -1604,6 +1800,207 @@ export default function App() {
                     <p>
                       Select a transaction, add a customer explanation,
                       then generate a local WebLLM dispute draft.
+                    </p>
+                  </div>
+                )}
+              </section>
+            </div>
+          </section>
+
+          <section
+            className="explanation-panel tab-content"
+            id="panel-txn-explanation"
+            role="tabpanel"
+            hidden={activeTab !== "txn-explanation"}
+          >
+            <header className="chat-header">
+              <div>
+                <p className="eyebrow">Transaction Clarity</p>
+                <h2>Transaction explanation</h2>
+              </div>
+              <FileText aria-hidden="true" />
+            </header>
+
+            <div className="explanation-workspace">
+              <section className="transaction-list" aria-label="Transactions">
+                <div className="section-heading">
+                  <p className="eyebrow">Step 1</p>
+                  <h3>Select a transaction</h3>
+                </div>
+                {MOCK_TRANSACTIONS.map((transaction) => (
+                  <button
+                    key={transaction.id}
+                    className={`transaction-card ${
+                      selectedExplanationTransaction.id === transaction.id
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() => handleSelectExplanationTransaction(transaction)}
+                    type="button"
+                  >
+                    <span>{transaction.merchant}</span>
+                    <strong>{transaction.amount}</strong>
+                    <small>
+                      {transaction.date} · {transaction.category}
+                    </small>
+                    <small>{transaction.accountLabel}</small>
+                  </button>
+                ))}
+              </section>
+
+              <section className="search-query-card">
+                <div className="section-heading">
+                  <p className="eyebrow">Step 2</p>
+                  <h3>Ask what to explain</h3>
+                </div>
+                <div className="selected-transaction">
+                  <span>Selected transaction</span>
+                  <p>
+                    {selectedExplanationTransaction.merchant} ·{" "}
+                    {selectedExplanationTransaction.amount} ·{" "}
+                    {selectedExplanationTransaction.date}
+                  </p>
+                </div>
+                <textarea
+                  value={transactionExplanationQuestion}
+                  onChange={(event) =>
+                    setTransactionExplanationQuestion(event.target.value)
+                  }
+                  placeholder="Ask what the customer needs to understand..."
+                  rows={5}
+                />
+                <div className="dispute-actions">
+                  <button
+                    className="primary"
+                    type="button"
+                    disabled={!canChat || !transactionExplanationQuestion.trim()}
+                    onClick={() => void handleGenerateTransactionExplanation()}
+                  >
+                    {isGenerating && activeTab === "txn-explanation" ? (
+                      <Loader2 className="spin" aria-hidden="true" />
+                    ) : (
+                      <FileText aria-hidden="true" />
+                    )}
+                    Explain Transaction
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetTransactionExplanation}
+                    disabled={isGenerating}
+                  >
+                    Reset Explanation
+                  </button>
+                </div>
+                {!canChat && (
+                  <p className="helper-text">
+                    Load the model before explaining the selected transaction.
+                  </p>
+                )}
+              </section>
+
+              <section className="draft-panel" aria-live="polite">
+                <div className="section-heading">
+                  <p className="eyebrow">Step 3</p>
+                  <h3>WebLLM explanation</h3>
+                </div>
+                {transactionExplanation ? (
+                  <div className="markdown-output">
+                    {renderSimpleMarkdown(transactionExplanation)}
+                  </div>
+                ) : (
+                  <div className="empty-state compact">
+                    <h3>No explanation yet.</h3>
+                    <p>
+                      Select one transaction and ask WebLLM to explain it in
+                      customer-friendly language.
+                    </p>
+                  </div>
+                )}
+              </section>
+            </div>
+          </section>
+
+          <section
+            className="complaint-panel tab-content"
+            id="panel-complaint-intake"
+            role="tabpanel"
+            hidden={activeTab !== "complaint-intake"}
+          >
+            <header className="chat-header">
+              <div>
+                <p className="eyebrow">Complaint Intake</p>
+                <h2>Complaint intake structuring</h2>
+              </div>
+              <AlertTriangle aria-hidden="true" />
+            </header>
+
+            <div className="complaint-workspace">
+              <section className="search-query-card">
+                <div className="section-heading">
+                  <p className="eyebrow">Step 1</p>
+                  <h3>Capture complaint text</h3>
+                </div>
+                <textarea
+                  value={complaintText}
+                  onChange={(event) => setComplaintText(event.target.value)}
+                  placeholder="Paste or type a customer complaint..."
+                  rows={9}
+                />
+                <div className="query-chips">
+                  {COMPLAINT_SAMPLES.map((sample, index) => (
+                    <button
+                      type="button"
+                      key={sample}
+                      onClick={() => setComplaintText(sample)}
+                    >
+                      Sample {index + 1}
+                    </button>
+                  ))}
+                </div>
+                <div className="dispute-actions">
+                  <button
+                    className="primary"
+                    type="button"
+                    disabled={!canChat || !complaintText.trim()}
+                    onClick={() => void handleGenerateComplaintIntake()}
+                  >
+                    {isGenerating && activeTab === "complaint-intake" ? (
+                      <Loader2 className="spin" aria-hidden="true" />
+                    ) : (
+                      <AlertTriangle aria-hidden="true" />
+                    )}
+                    Structure Complaint
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetComplaintIntake}
+                    disabled={isGenerating}
+                  >
+                    Reset Intake
+                  </button>
+                </div>
+                {!canChat && (
+                  <p className="helper-text">
+                    Load the model before structuring the complaint.
+                  </p>
+                )}
+              </section>
+
+              <section className="draft-panel" aria-live="polite">
+                <div className="section-heading">
+                  <p className="eyebrow">Step 2</p>
+                  <h3>Structured intake</h3>
+                </div>
+                {complaintIntake ? (
+                  <div className="markdown-output">
+                    {renderSimpleMarkdown(complaintIntake)}
+                  </div>
+                ) : (
+                  <div className="empty-state compact">
+                    <h3>No intake summary yet.</h3>
+                    <p>
+                      WebLLM will turn the complaint into a concise associate
+                      review summary.
                     </p>
                   </div>
                 )}
