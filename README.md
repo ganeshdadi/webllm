@@ -4,7 +4,7 @@ A browser-based banking assistant that runs a compact language model locally wit
 
 ## Functionality
 
-- **Banking Prompt Lab**: Ask banking questions and get locally generated responses in the browser.
+- **Banking Prompts**: Ask banking questions and get locally generated responses in the browser.
 - **Dispute Form Filling**: Select a transaction, add dispute details, and generate a structured draft.
 - **Transaction Search**: Search transactions with natural language and get an explanation of matching results.
 - **Transaction Visualization**: Generate simple spending charts and receive a locally generated interpretation.
@@ -40,7 +40,7 @@ Build for production:
 npm run build
 ```
 
-## Sample Banking Prompt Lab Questions
+## Sample Banking Prompts
 
 - Explain the difference between available balance and current balance in simple customer-friendly language.
 - Draft a polite response to a customer asking why an ACH transfer is still pending.

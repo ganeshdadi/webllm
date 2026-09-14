@@ -52,7 +52,7 @@ type DemoTab =
   | "model-calls";
 
 type ModelCallSource =
-  | "Banking Prompt Lab"
+  | "Banking Prompts"
   | "Dispute Form Filling"
   | "Transaction Search"
   | "Transaction Visualization";
@@ -1000,7 +1000,7 @@ export default function App() {
       { role: "user", content: trimmed },
     ];
     const logId = startModelCall(
-      "Banking Prompt Lab",
+      "Banking Prompts",
       createBankingReplyRequest(chatHistory),
     );
 
@@ -1157,7 +1157,7 @@ export default function App() {
               onClick={() => setActiveTab("prompt-lab")}
             >
               <MessagesSquare aria-hidden="true" />
-              Banking Prompt Lab
+              Banking Prompts
             </button>
             <button
               role="tab"
@@ -1206,7 +1206,7 @@ export default function App() {
             <header className="chat-header">
               <div>
                 <p className="eyebrow">Client GPU Inference</p>
-                <h2>Banking prompt lab</h2>
+                <h2>Banking prompts</h2>
               </div>
               <MessagesSquare aria-hidden="true" />
             </header>
