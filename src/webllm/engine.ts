@@ -30,6 +30,17 @@ export type LoadProgress = {
   cached: boolean | null;
 };
 
+export type WebLLMRequestMetadata = {
+  api: "engine.chat.completions.create";
+  request: {
+    messages: ChatCompletionMessageParam[];
+    stream: true;
+    temperature: number;
+    top_p: number;
+    max_tokens: number;
+  };
+};
+
 let enginePromise: Promise<MLCEngineInterface> | null = null;
 let engineInstance: MLCEngineInterface | null = null;
 
@@ -144,14 +155,9 @@ export async function streamBankingReply(
     throw new Error("Model is not loaded yet.");
   }
 
-  const chunks = await engineInstance.chat.completions.create({
-    messages: [
-      { role: "system", content: BANKING_SYSTEM_PROMPT },
-      ...messages,
-    ],
-    stream: true,
-    ...GENERATION_CONFIG,
-  });
+  const chunks = await engineInstance.chat.completions.create(
+    createBankingReplyRequest(messages).request,
+  );
 
   let fullText = "";
   for await (const chunk of chunks) {
@@ -173,25 +179,9 @@ export async function streamDisputeDraft(
     throw new Error("Model is not loaded yet.");
   }
 
-  const chunks = await engineInstance.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: [
-          "You are a local browser-only banking dispute form drafting assistant.",
-          "Use only the transaction and form details provided by the user.",
-          "Do not claim to submit disputes, access bank systems, verify accounts, or make final decisions.",
-          "Generate a structured draft with these headings: Suggested dispute reason/category, Completed dispute summary, Customer narrative, Evidence checklist, Questions still needed before submission, Review note.",
-          "Keep the output concise, practical, customer-friendly, and clearly marked as a draft for review.",
-          "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
-        ].join(" "),
-      },
-      { role: "user", content: userPrompt },
-    ],
-    stream: true,
-    ...GENERATION_CONFIG,
-    max_tokens: 700,
-  });
+  const chunks = await engineInstance.chat.completions.create(
+    createDisputeDraftRequest(userPrompt).request,
+  );
 
   let fullText = "";
   for await (const chunk of chunks) {
@@ -213,25 +203,9 @@ export async function streamTransactionSearchSummary(
     throw new Error("Model is not loaded yet.");
   }
 
-  const chunks = await engineInstance.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: [
-          "You are a local browser-only banking transaction search assistant.",
-          "Use only the transaction search query and search results provided by the user.",
-          "Do not claim to access accounts, balances, card systems, or bank records beyond the provided results.",
-          "Explain why the listed transactions match the customer's natural-language search.",
-          "Generate concise output with these headings: Search interpretation, Matching transactions, Customer-friendly summary, Helpful next actions.",
-          "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
-        ].join(" "),
-      },
-      { role: "user", content: userPrompt },
-    ],
-    stream: true,
-    ...GENERATION_CONFIG,
-    max_tokens: 600,
-  });
+  const chunks = await engineInstance.chat.completions.create(
+    createTransactionSearchRequest(userPrompt).request,
+  );
 
   let fullText = "";
   for await (const chunk of chunks) {
@@ -253,25 +227,9 @@ export async function streamTransactionVisualizationSummary(
     throw new Error("Model is not loaded yet.");
   }
 
-  const chunks = await engineInstance.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: [
-          "You are a local browser-only banking transaction visualization assistant.",
-          "Use only the chart request and aggregated chart data provided by the user.",
-          "Do not claim to access accounts, balances, card systems, or bank records beyond the provided chart data.",
-          "Explain the chart in customer-friendly language and call out simple spending patterns.",
-          "Generate concise output with these headings: Chart interpretation, Key takeaways, Suggested next actions.",
-          "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
-        ].join(" "),
-      },
-      { role: "user", content: userPrompt },
-    ],
-    stream: true,
-    ...GENERATION_CONFIG,
-    max_tokens: 600,
-  });
+  const chunks = await engineInstance.chat.completions.create(
+    createTransactionVisualizationRequest(userPrompt).request,
+  );
 
   let fullText = "";
   for await (const chunk of chunks) {
@@ -283,6 +241,100 @@ export async function streamTransactionVisualizationSummary(
   }
 
   return fullText;
+}
+
+export function createBankingReplyRequest(
+  messages: ChatCompletionMessageParam[],
+): WebLLMRequestMetadata {
+  return {
+    api: "engine.chat.completions.create",
+    request: {
+      messages: [{ role: "system", content: BANKING_SYSTEM_PROMPT }, ...messages],
+      stream: true,
+      ...GENERATION_CONFIG,
+    },
+  };
+}
+
+export function createDisputeDraftRequest(
+  userPrompt: string,
+): WebLLMRequestMetadata {
+  return {
+    api: "engine.chat.completions.create",
+    request: {
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a local browser-only banking dispute form drafting assistant.",
+            "Use only the transaction and form details provided by the user.",
+            "Do not claim to submit disputes, access bank systems, verify accounts, or make final decisions.",
+            "Generate a structured draft with these headings: Suggested dispute reason/category, Completed dispute summary, Customer narrative, Evidence checklist, Questions still needed before submission, Review note.",
+            "Keep the output concise, practical, customer-friendly, and clearly marked as a draft for review.",
+            "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
+          ].join(" "),
+        },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+      ...GENERATION_CONFIG,
+      max_tokens: 700,
+    },
+  };
+}
+
+export function createTransactionSearchRequest(
+  userPrompt: string,
+): WebLLMRequestMetadata {
+  return {
+    api: "engine.chat.completions.create",
+    request: {
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a local browser-only banking transaction search assistant.",
+            "Use only the transaction search query and search results provided by the user.",
+            "Do not claim to access accounts, balances, card systems, or bank records beyond the provided results.",
+            "Explain why the listed transactions match the customer's natural-language search.",
+            "Generate concise output with these headings: Search interpretation, Matching transactions, Customer-friendly summary, Helpful next actions.",
+            "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
+          ].join(" "),
+        },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+      ...GENERATION_CONFIG,
+      max_tokens: 600,
+    },
+  };
+}
+
+export function createTransactionVisualizationRequest(
+  userPrompt: string,
+): WebLLMRequestMetadata {
+  return {
+    api: "engine.chat.completions.create",
+    request: {
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You are a local browser-only banking transaction visualization assistant.",
+            "Use only the chart request and aggregated chart data provided by the user.",
+            "Do not claim to access accounts, balances, card systems, or bank records beyond the provided chart data.",
+            "Explain the chart in customer-friendly language and call out simple spending patterns.",
+            "Generate concise output with these headings: Chart interpretation, Key takeaways, Suggested next actions.",
+            "Do not request account identifiers, payment card details, credentials, authentication codes, or other sensitive personal or financial information.",
+          ].join(" "),
+        },
+        { role: "user", content: userPrompt },
+      ],
+      stream: true,
+      ...GENERATION_CONFIG,
+      max_tokens: 600,
+    },
+  };
 }
 
 export async function resetChat(): Promise<void> {

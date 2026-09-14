@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  Code2,
   Database,
   ExternalLink,
   FileText,
@@ -18,6 +19,10 @@ import {
 } from "lucide-react";
 import {
   clearModelCache,
+  createBankingReplyRequest,
+  createDisputeDraftRequest,
+  createTransactionSearchRequest,
+  createTransactionVisualizationRequest,
   getCacheStatus,
   isWebGpuAvailable,
   loadBankingEngine,
@@ -28,6 +33,7 @@ import {
   streamTransactionVisualizationSummary,
   type LoadPhase,
   type LoadProgress,
+  type WebLLMRequestMetadata,
 } from "./webllm/engine";
 import { MODEL_FACTS, SAMPLE_PROMPTS } from "./webllm/config";
 import type { ChatCompletionMessageParam } from "@mlc-ai/web-llm";
@@ -38,7 +44,30 @@ type ChatMessage = {
   content: string;
 };
 
-type DemoTab = "prompt-lab" | "dispute" | "txn-search" | "txn-visuals";
+type DemoTab =
+  | "prompt-lab"
+  | "dispute"
+  | "txn-search"
+  | "txn-visuals"
+  | "model-calls";
+
+type ModelCallSource =
+  | "Banking Prompt Lab"
+  | "Dispute Form Filling"
+  | "Transaction Search"
+  | "Transaction Visualization";
+
+type ModelCallStatus = "streaming" | "complete" | "error";
+
+type ModelCallLog = {
+  id: string;
+  source: ModelCallSource;
+  api: WebLLMRequestMetadata["api"];
+  request: WebLLMRequestMetadata["request"];
+  response: string;
+  status: ModelCallStatus;
+  createdAt: string;
+};
 
 type MockTransaction = {
   id: string;
@@ -372,6 +401,10 @@ export default function App() {
   const [chartTitle, setChartTitle] = useState("Spending by category");
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [chartSummary, setChartSummary] = useState("");
+  const [modelCallLogs, setModelCallLogs] = useState<ModelCallLog[]>([]);
+  const [selectedModelCallId, setSelectedModelCallId] = useState<string | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -385,6 +418,54 @@ export default function App() {
       ) ?? MOCK_TRANSACTIONS[0],
     [selectedTransactionId],
   );
+  const selectedModelCall = useMemo(
+    () =>
+      modelCallLogs.find((log) => log.id === selectedModelCallId) ??
+      modelCallLogs[0] ??
+      null,
+    [modelCallLogs, selectedModelCallId],
+  );
+
+  function startModelCall(
+    source: ModelCallSource,
+    metadata: WebLLMRequestMetadata,
+  ) {
+    const id = crypto.randomUUID();
+    const log: ModelCallLog = {
+      id,
+      source,
+      api: metadata.api,
+      request: metadata.request,
+      response: "",
+      status: "streaming",
+      createdAt: new Date().toISOString(),
+    };
+
+    setModelCallLogs((current) => [log, ...current]);
+    setSelectedModelCallId(id);
+    return id;
+  }
+
+  function updateModelCall(
+    id: string,
+    updates: Partial<Pick<ModelCallLog, "response" | "status">>,
+  ) {
+    setModelCallLogs((current) =>
+      current.map((log) => (log.id === id ? { ...log, ...updates } : log)),
+    );
+  }
+
+  function formatModelCallTime(value: string) {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date(value));
+  }
+
+  function formatRequestJson(request: ModelCallLog["request"]) {
+    return JSON.stringify(request, null, 2);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -549,8 +630,18 @@ export default function App() {
       text: "Generating a local dispute draft on the client GPU...",
     }));
 
+    const disputePrompt = buildDisputePrompt();
+    const logId = startModelCall(
+      "Dispute Form Filling",
+      createDisputeDraftRequest(disputePrompt),
+    );
+
     try {
-      await streamDisputeDraft(buildDisputePrompt(), setDisputeDraft);
+      await streamDisputeDraft(disputePrompt, (content) => {
+        setDisputeDraft(content);
+        updateModelCall(logId, { response: content });
+      });
+      updateModelCall(logId, { status: "complete" });
       setProgress((current) => ({
         ...current,
         phase: "ready",
@@ -561,6 +652,10 @@ export default function App() {
         caught instanceof Error ? caught.message : "Dispute draft failed.";
       setError(message);
       setDisputeDraft(`Generation failed: ${message}`);
+      updateModelCall(logId, {
+        response: `Generation failed: ${message}`,
+        status: "error",
+      });
       setProgress((current) => ({ ...current, phase: "error", text: message }));
     } finally {
       setIsGenerating(false);
@@ -651,11 +746,18 @@ export default function App() {
       text: "Explaining transaction search results on the client GPU...",
     }));
 
+    const searchPrompt = buildTransactionSearchPrompt(results);
+    const logId = startModelCall(
+      "Transaction Search",
+      createTransactionSearchRequest(searchPrompt),
+    );
+
     try {
-      await streamTransactionSearchSummary(
-        buildTransactionSearchPrompt(results),
-        setTransactionSearchSummary,
-      );
+      await streamTransactionSearchSummary(searchPrompt, (content) => {
+        setTransactionSearchSummary(content);
+        updateModelCall(logId, { response: content });
+      });
+      updateModelCall(logId, { status: "complete" });
       setProgress((current) => ({
         ...current,
         phase: "ready",
@@ -666,6 +768,10 @@ export default function App() {
         caught instanceof Error ? caught.message : "Transaction search failed.";
       setError(message);
       setTransactionSearchSummary(`Generation failed: ${message}`);
+      updateModelCall(logId, {
+        response: `Generation failed: ${message}`,
+        status: "error",
+      });
       setProgress((current) => ({ ...current, phase: "error", text: message }));
     } finally {
       setIsGenerating(false);
@@ -813,11 +919,24 @@ export default function App() {
       text: "Explaining transaction visualization on the client GPU...",
     }));
 
+    const visualizationPrompt = buildVisualizationPrompt(
+      nextChart.title,
+      nextChart.data,
+    );
+    const logId = startModelCall(
+      "Transaction Visualization",
+      createTransactionVisualizationRequest(visualizationPrompt),
+    );
+
     try {
       await streamTransactionVisualizationSummary(
-        buildVisualizationPrompt(nextChart.title, nextChart.data),
-        setChartSummary,
+        visualizationPrompt,
+        (content) => {
+          setChartSummary(content);
+          updateModelCall(logId, { response: content });
+        },
       );
+      updateModelCall(logId, { status: "complete" });
       setProgress((current) => ({
         ...current,
         phase: "ready",
@@ -828,6 +947,10 @@ export default function App() {
         caught instanceof Error ? caught.message : "Visualization failed.";
       setError(message);
       setChartSummary(`Generation failed: ${message}`);
+      updateModelCall(logId, {
+        response: `Generation failed: ${message}`,
+        status: "error",
+      });
       setProgress((current) => ({ ...current, phase: "error", text: message }));
     } finally {
       setIsGenerating(false);
@@ -869,22 +992,28 @@ export default function App() {
       text: "Generating a local response on the client GPU...",
     }));
 
-    try {
-      const chatHistory: ChatCompletionMessageParam[] = [
-        ...messages.map((message) => ({
-          role: message.role,
-          content: message.content,
-        })),
-        { role: "user", content: trimmed },
-      ];
+    const chatHistory: ChatCompletionMessageParam[] = [
+      ...messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+      { role: "user", content: trimmed },
+    ];
+    const logId = startModelCall(
+      "Banking Prompt Lab",
+      createBankingReplyRequest(chatHistory),
+    );
 
+    try {
       await streamBankingReply(chatHistory, (content) => {
         setMessages((current) =>
           current.map((message) =>
             message.id === assistantId ? { ...message, content } : message,
           ),
         );
+        updateModelCall(logId, { response: content });
       });
+      updateModelCall(logId, { status: "complete" });
 
       setProgress((current) => ({
         ...current,
@@ -895,6 +1024,10 @@ export default function App() {
       const message =
         caught instanceof Error ? caught.message : "Generation failed.";
       setError(message);
+      updateModelCall(logId, {
+        response: `Generation failed: ${message}`,
+        status: "error",
+      });
       setMessages((current) =>
         current.map((item) =>
           item.id === assistantId
@@ -1053,6 +1186,15 @@ export default function App() {
               <BarChart3 aria-hidden="true" />
               Transaction Visualization
             </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === "model-calls"}
+              aria-controls="panel-model-calls"
+              onClick={() => setActiveTab("model-calls")}
+            >
+              <Code2 aria-hidden="true" />
+              Model Calls
+            </button>
           </div>
 
           <section
@@ -1115,8 +1257,8 @@ export default function App() {
               <textarea
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                  placeholder={
-                    canChat
+                placeholder={
+                  canChat
                     ? "Ask a banking question..."
                     : "Load the model before chatting..."
                 }
@@ -1563,6 +1705,116 @@ export default function App() {
                     <p>
                       The model will explain the chart and suggest useful
                       next actions.
+                    </p>
+                  </div>
+                )}
+              </section>
+            </div>
+          </section>
+
+          <section
+            className="model-calls-panel tab-content"
+            id="panel-model-calls"
+            role="tabpanel"
+            hidden={activeTab !== "model-calls"}
+          >
+            <header className="chat-header">
+              <div>
+                <p className="eyebrow">Behind The Scenes</p>
+                <h2>Model calls</h2>
+              </div>
+              <Code2 aria-hidden="true" />
+            </header>
+
+            <div className="model-calls-workspace">
+              <section className="model-call-list">
+                <div className="section-heading">
+                  <p className="eyebrow">Requests</p>
+                  <h3>Recent calls</h3>
+                </div>
+                {modelCallLogs.length > 0 ? (
+                  <div className="call-items">
+                    {modelCallLogs.map((log) => (
+                      <button
+                        key={log.id}
+                        className={`call-item ${
+                          selectedModelCall?.id === log.id ? "selected" : ""
+                        }`}
+                        onClick={() => setSelectedModelCallId(log.id)}
+                        type="button"
+                      >
+                        <span>{log.source}</span>
+                        <strong>{log.status}</strong>
+                        <small>{formatModelCallTime(log.createdAt)}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="empty-state compact">
+                    <h3>No model calls yet.</h3>
+                    <p>
+                      Run a banking prompt, dispute draft, transaction search,
+                      or visualization to inspect the WebLLM request and
+                      response.
+                    </p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModelCallLogs([]);
+                    setSelectedModelCallId(null);
+                  }}
+                  disabled={modelCallLogs.length === 0 || isGenerating}
+                >
+                  Clear Logs
+                </button>
+              </section>
+
+              <section className="model-call-detail">
+                {selectedModelCall ? (
+                  <>
+                    <div className="model-call-summary">
+                      <div>
+                        <span>Source</span>
+                        <p>{selectedModelCall.source}</p>
+                      </div>
+                      <div>
+                        <span>Status</span>
+                        <p>{selectedModelCall.status}</p>
+                      </div>
+                      <div>
+                        <span>Time</span>
+                        <p>{formatModelCallTime(selectedModelCall.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    <div className="call-code-block">
+                      <span>API</span>
+                      <pre>{selectedModelCall.api}</pre>
+                    </div>
+
+                    <div className="call-code-block">
+                      <span>Request</span>
+                      <pre>{formatRequestJson(selectedModelCall.request)}</pre>
+                    </div>
+
+                    <div className="call-code-block">
+                      <span>Response</span>
+                      <pre>
+                        {selectedModelCall.response ||
+                          (selectedModelCall.status === "streaming"
+                            ? "Waiting for streamed response..."
+                            : "No response captured.")}
+                      </pre>
+                    </div>
+                  </>
+                ) : (
+                  <div className="empty-state compact">
+                    <h3>Select a model call.</h3>
+                    <p>
+                      The latest request will appear here automatically when a
+                      model call starts.
                     </p>
                   </div>
                 )}
