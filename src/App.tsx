@@ -99,6 +99,9 @@ type ChartDataPoint = {
 
 type TransactionSearchModelOutput = {
   matchedTransactionIds?: string[];
+  searchInterpretation?: string;
+  matchingRationale?: string[];
+  helpfulNextActions?: string[];
   explanationMarkdown?: string;
 };
 
@@ -110,6 +113,9 @@ type TransactionVisualizationModelOutput = {
     count?: number;
     transactionIds?: string[];
   }>;
+  chartInterpretation?: string;
+  keyTakeaways?: string[];
+  suggestedNextActions?: string[];
   explanationMarkdown?: string;
 };
 
@@ -707,7 +713,12 @@ export default function App() {
     }
     const jsonText = fencedJson?.[1] ?? text.slice(jsonStart);
 
-    return JSON.parse(jsonText) as T;
+    try {
+      return JSON.parse(jsonText) as T;
+    } catch {
+      const repairedJson = jsonText.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+      return JSON.parse(repairedJson) as T;
+    }
   }
 
   function findTransactionsByIds(ids: string[] = []) {
@@ -718,6 +729,68 @@ export default function App() {
     return ids
       .map((id) => transactionsById.get(id))
       .filter((transaction): transaction is MockTransaction => Boolean(transaction));
+  }
+
+  function buildSearchSummaryMarkdown(
+    parsed: TransactionSearchModelOutput,
+    results: MockTransaction[],
+  ) {
+    if (parsed.explanationMarkdown) {
+      return parsed.explanationMarkdown;
+    }
+
+    const matchingRationale =
+      parsed.matchingRationale && parsed.matchingRationale.length > 0
+        ? parsed.matchingRationale
+        : results.map(
+            (transaction) =>
+              `${transaction.merchant} matched the request (${transaction.category}, ${transaction.amount}).`,
+          );
+    const helpfulNextActions =
+      parsed.helpfulNextActions && parsed.helpfulNextActions.length > 0
+        ? parsed.helpfulNextActions
+        : ["Review transaction details or create an alert for future activity."];
+
+    return [
+      "### Search interpretation",
+      parsed.searchInterpretation || "WebLLM interpreted the search request.",
+      "",
+      "### Matching transactions",
+      matchingRationale.length > 0
+        ? matchingRationale.map((item) => `- ${item}`).join("\n")
+        : "- No matching transactions were selected.",
+      "",
+      "### Helpful next actions",
+      helpfulNextActions.map((item) => `- ${item}`).join("\n"),
+    ].join("\n");
+  }
+
+  function buildVisualizationSummaryMarkdown(
+    parsed: TransactionVisualizationModelOutput,
+  ) {
+    if (parsed.explanationMarkdown) {
+      return parsed.explanationMarkdown;
+    }
+
+    const keyTakeaways =
+      parsed.keyTakeaways && parsed.keyTakeaways.length > 0
+        ? parsed.keyTakeaways
+        : ["Review the generated chart groups for spending patterns."];
+    const suggestedNextActions =
+      parsed.suggestedNextActions && parsed.suggestedNextActions.length > 0
+        ? parsed.suggestedNextActions
+        : ["Compare with another time period or review transaction details."];
+
+    return [
+      "### Chart interpretation",
+      parsed.chartInterpretation || "WebLLM selected and grouped transactions for the requested chart.",
+      "",
+      "### Key takeaways",
+      keyTakeaways.map((item) => `- ${item}`).join("\n"),
+      "",
+      "### Suggested next actions",
+      suggestedNextActions.map((item) => `- ${item}`).join("\n"),
+    ].join("\n");
   }
 
   function buildTransactionSearchPrompt(query: string) {
@@ -734,10 +807,15 @@ export default function App() {
       "- Use only transaction IDs from the provided dataset.",
       "- If no transactions match, return an empty matchedTransactionIds array.",
       "- Include all relevant matches, including multi-intent searches like bill payments and travel payments.",
+      "- For amount queries such as over, above, more than, or greater than, compare the request amount to amountValue.",
+      "- For recurring or subscription queries, use category and tags to identify matches.",
       "- Do not invent transaction IDs.",
       "- Return one fenced ```json block and no text outside the block.",
       "- The JSON object must contain matchedTransactionIds as an array of exact ID strings from the dataset.",
-      "- The JSON object must contain explanationMarkdown as a markdown string with Search interpretation, Matching transactions, and Helpful next actions sections.",
+      "- The JSON object must contain searchInterpretation as one plain text string.",
+      "- The JSON object must contain matchingRationale as an array of plain text strings.",
+      "- The JSON object must contain helpfulNextActions as an array of plain text strings.",
+      "- Do not use markdown syntax, backticks, code fences, or backslashes inside JSON string values.",
     ].join("\n");
   }
 
@@ -773,9 +851,7 @@ export default function App() {
         extractJsonBlock<TransactionSearchModelOutput>(rawResponse);
       const results = findTransactionsByIds(parsed.matchedTransactionIds);
       setTransactionSearchResults(results);
-      setTransactionSearchSummary(
-        parsed.explanationMarkdown || "WebLLM returned matching transactions.",
-      );
+      setTransactionSearchSummary(buildSearchSummaryMarkdown(parsed, results));
       updateModelCall(logId, { status: "complete" });
       setProgress((current) => ({
         ...current,
@@ -827,12 +903,18 @@ export default function App() {
       "- You decide which transactions are relevant and how to group them for the requested chart.",
       "- Use only transaction IDs from the provided dataset.",
       "- If no transactions match, return an empty chartData array.",
+      "- For recurring or subscription charts, group recurring/subscription transactions by merchant unless the customer asks for another grouping.",
+      "- For travel-by-month charts, group travel transactions by month.",
+      "- For category charts, group matching transactions by category.",
       "- Do not invent transaction IDs.",
       "- Return one fenced ```json block and no text outside the block.",
       "- The JSON object must contain chartTitle as a short string for the actual requested chart.",
       "- The JSON object must contain chartData as an array. Each chartData item must contain label and transactionIds.",
       "- Each transactionIds array must contain exact ID strings from the dataset. The app will calculate display amounts and counts from those IDs.",
-      "- The JSON object must contain explanationMarkdown as a markdown string with Chart interpretation, Key takeaways, and Suggested next actions sections.",
+      "- The JSON object must contain chartInterpretation as one plain text string.",
+      "- The JSON object must contain keyTakeaways as an array of plain text strings.",
+      "- The JSON object must contain suggestedNextActions as an array of plain text strings.",
+      "- Do not use markdown syntax, backticks, code fences, or backslashes inside JSON string values.",
     ].join("\n");
   }
 
@@ -893,9 +975,7 @@ export default function App() {
 
       setChartTitle(parsed.chartTitle?.trim() || "WebLLM-generated chart");
       setChartData(nextChartData);
-      setChartSummary(
-        parsed.explanationMarkdown || "WebLLM returned chart data.",
-      );
+      setChartSummary(buildVisualizationSummaryMarkdown(parsed));
       updateModelCall(logId, { status: "complete" });
       setProgress((current) => ({
         ...current,
